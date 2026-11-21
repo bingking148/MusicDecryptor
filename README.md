@@ -56,6 +56,11 @@ frida-inject ──注入──> QQMusic.exe
 应用本体不含任何解密算法，解密完全由 QQ 音乐客户端自身的组件完成；
 应用也不修改 QQ 音乐客户端。
 
+## Android
+
+手机版在 `android/`，用 Kotlin 与 Jetpack Compose 在设备上解密，不依赖桌面端的 QQ 音乐进程。
+构建、使用和做不到的部分见 [android/README.md](android/README.md)。
+
 ## 开发 / 构建
 
 ```bash

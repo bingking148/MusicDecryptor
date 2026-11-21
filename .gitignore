@@ -25,3 +25,11 @@ desktop.ini
 # 日志与临时导出
 *.log
 decrypt-log-*.txt
+
+# Android 构建产物与本机 SDK 路径
+android/.gradle/
+android/build/
+android/app/build/
+android/crypto/build/
+android/local.properties
+android/.idea/
