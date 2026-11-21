@@ -415,17 +415,16 @@ object DecryptEngine {
         isCancelled: () -> Boolean,
         onProgress: (Long, Long) -> Unit,
     ): Track {
-        if (track.plan == KeyPlan.MAC) {
-            return track.copy(status = TrackStatus.FAILED, message = "这是 Mac 客户端文件，密钥在电脑的 MMKV 里，手机读不到。")
-        }
         return try {
             openSource(app, Uri.parse(track.uri)).use { owned ->
                 val source = owned.source
                 val probe = probeQmc(source)
-                if (probe.kind == FooterKind.STAG && track.plan == KeyPlan.MISSING) {
+                if (probe.kind == FooterKind.STAG && track.plan == KeyPlan.MISSING && cfg.manualEkey.isBlank() &&
+                    keys.lookup(track.name, probe.stag?.mediaMid) == null
+                ) {
                     return track.copy(
                         status = TrackStatus.FAILED,
-                        message = "这是安卓缓存（STag），文件里没有密钥。请导入 player_process_db，或粘贴这一首的 ekey。",
+                        message = "这是 STag 缓存，文件里没有密钥。导入 player_process_db 或 MMKVStreamEncryptId，或使用电脑接力。",
                     )
                 }
                 val opened = openCipher(source, probe, track.name, cfg.manualEkey)
@@ -501,14 +500,12 @@ object DecryptEngine {
                 if (kind != null) return Opened(cipher, probe.audioLength, kind)
             }
         }
-        if (probe.kind != FooterKind.MAC_EX) {
-            val external = keys.lookup(fileName, probe.stag?.mediaMid) ?: manual.trim().ifBlank { null }
-            if (external != null) {
-                cipherOf(external)?.let { cipher ->
-                    val length = if (probe.kind == FooterKind.STATIC) source.size else probe.audioLength
-                    val kind = headerKind(source, cipher, length)
-                    if (kind != null) return Opened(cipher, length, kind)
-                }
+        val external = keys.lookup(fileName, probe.stag?.mediaMid) ?: manual.trim().ifBlank { null }
+        if (external != null) {
+            cipherOf(external)?.let { cipher ->
+                val length = if (probe.kind == FooterKind.STATIC) source.size else probe.audioLength
+                val kind = headerKind(source, cipher, length)
+                if (kind != null) return Opened(cipher, length, kind)
             }
         }
         if (probe.kind == FooterKind.STATIC || probe.kind == FooterKind.EMBEDDED) {
@@ -535,8 +532,9 @@ object DecryptEngine {
 
     private fun failureMessage(probe: QmcProbe, plan: KeyPlan): String = when {
         probe.kind == FooterKind.STAG || plan == KeyPlan.MISSING ->
-            "没有对上密钥。安卓缓存需要 player_process_db，或这一首的 ekey。"
-        probe.kind == FooterKind.MAC_EX -> "Mac 客户端的密钥不在文件里。"
+            "文件里没有密钥，导入的密钥库也没对上。可导入 player_process_db、MMKVStreamEncryptId，或用电脑接力。"
+        probe.kind == FooterKind.MAC_EX ->
+            "这是 musicex 尾，密钥不在文件里。导入 MMKVStreamEncryptId 或 player_process_db 后再试。"
         probe.embeddedEKey != null -> "文件里的密钥解不开，结果也不是可识别的音频。"
         else -> "解密结果不是可识别的音频。文件可能已损坏，或不是 QQ 音乐的加密格式。"
     }
@@ -560,7 +558,11 @@ object DecryptEngine {
                 val source = owned.source
                 val probe = probeQmc(source)
                 val plan = when (probe.kind) {
-                    FooterKind.MAC_EX -> KeyPlan.MAC
+                    FooterKind.MAC_EX -> when {
+                        keys.lookup(name, probe.stag?.mediaMid) != null -> KeyPlan.DATABASE
+                        manual.isNotBlank() -> KeyPlan.MANUAL
+                        else -> KeyPlan.MAC
+                    }
                     FooterKind.EMBEDDED, FooterKind.QTAG ->
                         if (probe.embeddedEKey != null) KeyPlan.EMBEDDED else KeyPlan.MISSING
                     FooterKind.STAG -> when {

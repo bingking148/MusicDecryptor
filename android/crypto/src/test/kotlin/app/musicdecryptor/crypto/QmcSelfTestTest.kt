@@ -4,8 +4,40 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import kotlin.test.assertNotNull
 
 class QmcSelfTestTest {
+    @Test
+    fun mmkvVaultRoundTripAndDelete() {
+        val vault = mmkvVault(
+            "song.mflac" to "QUJDRA==",
+            "song.mflac" to "NEWERKEY",
+            "gone.mgg" to "",
+        )
+        val parsed = parseMmkvEkeys(vault)
+        assertNotNull(parsed)
+        assertEquals(listOf("song.mflac" to "NEWERKEY"), parsed)
+        assertEquals(listOf("a.mflac" to "abc"), parseJsonEkeys("""{"a.mflac":"abc"}"""))
+    }
+
+    @Test
+    fun musicExExposesFileNameWithoutKey() {
+        val tag = ByteArray(0xC0)
+        "Hello.mflac".forEachIndexed { index, ch ->
+            tag[0x48 + index * 2] = ch.code.toByte()
+        }
+        val size = 0xC0
+        tag[size - 16] = size.toByte()
+        tag[size - 12] = 1
+        "musicex\u0000".encodeToByteArray().copyInto(tag, size - 8)
+        val audio = "fLaC-body".encodeToByteArray()
+        val file = audio + tag
+        val probe = probeQmc(ArraySource(file))
+        assertEquals(FooterKind.MAC_EX, probe.kind)
+        assertEquals(audio.size.toLong(), probe.audioLength)
+        assertEquals("Hello.mflac", probe.stag?.mediaMid)
+        assertEquals(null, probe.embeddedEKey)
+    }
     @Test
     fun vectorsMatchGoOracle() {
         val failures = QmcSelfTest.run()
@@ -48,6 +80,41 @@ class QmcSelfTestTest {
         assertEquals("测试", meta.artist)
         assertNull(meta.album)
     }
+}
+
+private fun mmkvVault(vararg pairs: Pair<String, String>): ByteArray {
+    val body = ArrayList<Byte>()
+    body += 0
+    for ((key, value) in pairs) {
+        writeMmkvString(body, key)
+        if (value.isEmpty()) {
+            body += 0
+        } else {
+            val inner = ArrayList<Byte>()
+            writeMmkvString(inner, value)
+            writeVarint(body, inner.size)
+            body.addAll(inner)
+        }
+    }
+    val out = ByteArray(4 + body.size)
+    out[0] = body.size.toByte()
+    body.forEachIndexed { index, byte -> out[4 + index] = byte }
+    return out
+}
+
+private fun writeMmkvString(out: MutableList<Byte>, text: String) {
+    val bytes = text.encodeToByteArray()
+    writeVarint(out, bytes.size)
+    bytes.forEach { out += it }
+}
+
+private fun writeVarint(out: MutableList<Byte>, value: Int) {
+    var rest = value
+    while (rest >= 0x80) {
+        out += ((rest and 0x7F) or 0x80).toByte()
+        rest = rest ushr 7
+    }
+    out += rest.toByte()
 }
 
 private fun vorbisComment(vararg pairs: Pair<String, String>): ByteArray {

@@ -90,7 +90,7 @@ fun KeySheet(
         Text("密钥", color = Text, fontSize = 22.sp, fontWeight = FontWeight.Medium)
         Spacer(Modifier.height(6.dp))
         Text(
-            "带 QTag 或尾部 ekey 的文件可以直接解。安卓缓存的 STag 把密钥放在 QQ 音乐的私有目录里，普通存储权限读不到，这不是再点一次权限就能解决的。可以导入你自己导出的 player_process_db，或用同一局域网里已开启接力的电脑。",
+            "带 QTag 或尾部 ekey 的文件可以直接解。STag / musicex 的密钥不在文件里，而在 QQ 音乐私有目录，普通授权和 Shizuku 都读不到。你可以导入自己导出的 player_process_db 或 MMKVStreamEncryptId，也可以用电脑接力。",
             color = TextDim,
             fontSize = 13.sp,
         )
@@ -152,7 +152,7 @@ fun ComputerSheet(
         Text("用电脑解开", color = Text, fontSize = 22.sp, fontWeight = FontWeight.Medium)
         Spacer(Modifier.height(6.dp))
         Text(
-            "手机不能读取 QQ 音乐私有目录里的密钥，所以没有内嵌 ekey 的缓存解不开。若电脑上的音乐解密已打开，QQ 音乐也在运行，并在设置里点了「开启接力」，可以把缺密钥的文件送到那台电脑。",
+            "没有内嵌密钥时，手机不能自己变成 QQ 音乐。无线调试和 Shizuku 只提供 shell 权限，进不了 /data/data。若电脑上的音乐解密和 QQ 音乐都开着，并在设置里点了「开启接力」，可以把这些文件送到那台电脑。",
             color = TextDim,
             fontSize = 13.sp,
         )

@@ -40,7 +40,7 @@ fun probeQmc(source: ByteSource): QmcProbe {
     when (marker) {
         "QTag" -> return readQTag(source, size)
         "STag" -> return readSTag(source, size)
-        "cex\u0000" -> return QmcProbe(FooterKind.MAC_EX, size)
+        "cex\u0000" -> return readMusicEx(source, size)
     }
     val keyLen = le32(tail4, 0).toLong() and 0xFFFFFFFFL
     if (keyLen in 1L..0xFFFFL && size > keyLen + 4) {
@@ -57,6 +57,41 @@ fun probeQmc(source: ByteSource): QmcProbe {
         }
     }
     return QmcProbe(FooterKind.STATIC, size)
+}
+
+private fun readMusicEx(source: ByteSource, size: Long): QmcProbe {
+    if (size < 16) return QmcProbe(FooterKind.MAC_EX, size)
+    val tail = source.readFully(size - 16, 16)
+    val tagSize = le32(tail, 0).toLong() and 0xFFFFFFFFL
+    val version = le32(tail, 4)
+    val magicOk = tail.copyOfRange(8, 16).contentEquals("musicex\u0000".encodeToByteArray())
+    if (!magicOk || version != 1 || tagSize < 0xC0 || tagSize > size) {
+        return QmcProbe(FooterKind.MAC_EX, size)
+    }
+    val tag = source.readFully(size - tagSize, tagSize.toInt())
+    val fileName = utf16Ascii(tag, 0x48, 50)
+    val mediaId = utf16Ascii(tag, 0x0C, 30)
+    return QmcProbe(
+        kind = FooterKind.MAC_EX,
+        audioLength = size - tagSize,
+        stag = STagInfo(
+            resourceId = "",
+            mediaMid = fileName.ifBlank { mediaId },
+            footerSize = tagSize,
+        ),
+    )
+}
+
+private fun utf16Ascii(data: ByteArray, offset: Int, chars: Int): String {
+    val out = StringBuilder()
+    for (i in 0 until chars) {
+        val at = offset + i * 2
+        if (at >= data.size) break
+        val value = data[at].toInt() and 0xFF
+        if (value == 0) break
+        out.append(value.toChar())
+    }
+    return out.toString()
 }
 
 private fun readQTag(source: ByteSource, size: Long): QmcProbe {

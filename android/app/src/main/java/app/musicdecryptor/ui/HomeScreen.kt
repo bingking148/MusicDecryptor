@@ -386,7 +386,7 @@ private fun EmptyState() {
         Spacer(Modifier.height(8.dp))
         Text("选择 .mflac / .mgg", color = Text, fontSize = 18.sp, fontWeight = FontWeight.Medium)
         Text(
-            "可以从文件管理器挑选，也可以一次选很多。安卓 QQ 音乐缓存如果提示缺少密钥，先在「密钥」里导入 player_process_db。",
+            "文件里自带密钥的可以直接解。STag 缓存的密钥在 QQ 音乐私有目录，需要你先导出数据库或 MMKV，或用同一局域网里已开启接力的电脑。",
             color = TextDim,
             fontSize = 13.sp,
             textAlign = TextAlign.Center,

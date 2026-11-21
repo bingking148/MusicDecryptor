@@ -4,6 +4,8 @@ import android.content.Context
 import android.database.sqlite.SQLiteDatabase
 import android.net.Uri
 import app.musicdecryptor.crypto.outputStem
+import app.musicdecryptor.crypto.parseJsonEkeys
+import app.musicdecryptor.crypto.parseMmkvEkeys
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -60,12 +62,36 @@ class KeyLibrary(private val context: Context) {
                 dbFile.delete()
             }
         } else {
+            val fromMmkv = if (name.contains("mmkv", ignoreCase = true) || name.contains("EncryptId", ignoreCase = true)) {
+                parseMmkvEkeys(bytes)
+            } else {
+                null
+            }
+            if (fromMmkv != null) {
+                val parsed = fromMmkv.map { KeyEntry(baseName(it.first), it.second.trim()) }
+                replace(parsed, name)
+                return@withContext "已从 MMKV 导入 ${parsed.size} 条密钥"
+            }
             val text = bytes.toString(Charsets.UTF_8)
+            val fromJson = parseJsonEkeys(text)
+            if (fromJson != null) {
+                val parsed = fromJson.map { KeyEntry(baseName(it.first), it.second.trim()) }
+                replace(parsed, name)
+                return@withContext "已从 JSON 导入 ${parsed.size} 条密钥"
+            }
             val parsed = readText(text)
             if (parsed.size == 1 && parsed[0].name.isBlank()) {
                 return@withContext "BARE:" + parsed[0].ekey
             }
-            if (parsed.isEmpty()) return@withContext "没有解析到密钥。文本格式是「文件名<Tab>ekey」，每行一条"
+            if (parsed.isEmpty()) {
+                val fallback = parseMmkvEkeys(bytes)
+                if (fallback != null) {
+                    val rows = fallback.map { KeyEntry(baseName(it.first), it.second.trim()) }
+                    replace(rows, name)
+                    return@withContext "已从 MMKV 导入 ${rows.size} 条密钥"
+                }
+                return@withContext "没有解析到密钥。可以导入 player_process_db、MMKVStreamEncryptId、JSON，或「文件名<Tab>ekey」文本"
+            }
             replace(parsed, name)
             "已导入 ${parsed.size} 条密钥"
         }

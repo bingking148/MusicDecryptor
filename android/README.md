@@ -12,9 +12,9 @@
 | --- | --- |
 | 尾部带 ekey（4 字节长度）或 `QTag` 的 `.mflac` / `.mgg` / `.qmc*` | 离线直接解，密钥在文件里 |
 | 旧版没有密钥尾的 `.qmc0` 等 | 用静态掩码尝试，文件头必须能认出是音频 |
-| 安卓 QQ 音乐缓存（尾部是 `STag`） | 文件里**没有**密钥。需要导入 `player_process_db`，或粘贴这一首的 ekey |
+| 安卓 QQ 音乐缓存（尾部是 `STag`）或 `musicex` | 文件里没有密钥。导入 `player_process_db` 或明文 `MMKVStreamEncryptId`，或用电脑接力 |
 
-密钥库是 SQLite。支持表 `audio_file_ekey_table(file_path, ekey)` 和 `EKeyFileInfo(filePath, eKey)`。也可以导入文本，每行 `文件名<Tab>ekey`。
+密钥可以来自 SQLite（`audio_file_ekey_table` 或 `EKeyFileInfo`）、明文 MMKV（`MMKVStreamEncryptId`）、JSON，或每行 `文件名<Tab>ekey` 的文本。
 
 安卓客户端把数据库放在应用私有目录：
 
@@ -23,6 +23,20 @@
 ```
 
 普通应用读不到这里。需要你自己用 root 或备份工具把库拷出来（建议先打开一次 QQ 音乐，让 `-wal` 写回主库），再在本应用的「密钥」里导入。导入后按文件名和 STag 里的 media id 自动配对。
+
+## 又核对过的路径
+
+对照 unlock-music、freenote、QMCDecoder 和 QQ 音乐自己的存放方式之后，结论没有变成「手机上有一条被漏掉的万能算法」：
+
+| 做法 | 结果 |
+| --- | --- |
+| 文件尾 QTag / 内嵌 ekey / 旧版静态掩码 | 手机离线可解，不需要电脑 |
+| STag、musicex | 尾部只有曲目编号或文件名，没有 ekey |
+| `/data/data/com.tencent.qqmusic/databases/player_process_db` | 官方解锁说明和 2024–2025 的实机记录都指向这里；提取命令写的是 `adb shell su`，不是普通 adb |
+| `files/mmkv/MMKVStreamEncryptId` | 同一私有目录里的另一份密钥。本应用现在能导入这个明文库，但拿不到文件本身 |
+| 无线调试 / Shizuku | shell（uid 2000）读不了其他正式版应用的 `/data/data`。Shizuku 官方说明和 issue 都这么写。没有做成一个假装能读的按钮 |
+| 旧版 QQ 音乐（约 11.6 之前）或简洁版下载 | 密钥写在文件里，选进来就能解。这是换客户端重新下载，不是本应用突破沙箱 |
+| vivo 等厂商的应用数据备份 | 备份包里可能带出数据库，解压后用「密钥」导入。这是厂商备份，不是每台手机都有 |
 
 ## 为什么电脑可以、手机不行
 
@@ -38,7 +52,7 @@
 
 因此：
 
-- **文件自带 ekey / QTag，或你自己导出了数据库**：手机可以离线解，不需要电脑。
+- **文件自带 ekey / QTag，或你导入了数据库、明文 MMKV、JSON**：手机可以离线解，不需要电脑。
 - **只有 STag、没有密钥**：手机单独解不了。不要把它理解成「手机算不出格式」，缺的是密钥。
 - **你有一台已经能解密的电脑**：在电脑的「偏好设置 → 手机接力」里主动开启，手机和电脑连同一个 Wi-Fi，在手机里填地址和配对码。电脑仍用原来的 QQ 音乐通道解密，再把结果送回手机。不开启时，手机不会监听，也不会发网。
 
