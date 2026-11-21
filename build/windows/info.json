@@ -1,0 +1,15 @@
+{
+  "fixed": {
+    "file_version": "1.0.0.0"
+  },
+  "info": {
+    "0409": {
+      "ProductVersion": "1.0.0.0",
+      "CompanyName": "",
+      "FileDescription": "音乐解密器 Music Decryptor",
+      "LegalCopyright": "仅供个人合法获得的音频文件处理使用",
+      "ProductName": "音乐解密器 Music Decryptor",
+      "Comments": "由 Go + Wails 构建，调用本机 QQ 音乐客户端完成解密"
+    }
+  }
+}

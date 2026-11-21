@@ -1,0 +1,18 @@
+{
+  "$schema": "https://wails.io/schemas/config.v2.json",
+  "name": "music-decryptor-desktop",
+  "outputfilename": "MusicDecryptor",
+  "frontend:install": "",
+  "frontend:build": "",
+  "frontend:dev:watcher": "",
+  "frontend:dir": "frontend",
+  "author": {
+    "name": "music-decryptor-desktop"
+  },
+  "info": {
+    "productName": "Music Decryptor 音频解密工具",
+    "productVersion": "1.1.0",
+    "copyright": "仅供个人合法获得的音频文件处理使用",
+    "comments": "由 Go + Wails 构建的 QQ 音乐格式批量解密桌面应用"
+  }
+}

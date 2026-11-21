@@ -1,0 +1,27 @@
+# 构建产物（exe 通过 GitHub Releases 分发，不进 git 历史）
+build/bin/
+
+# 运行时生成：首次启动解压的引擎、临时文件、设置缓存
+bin/
+*.part
+*.tmp
+
+# Wails 构建时生成的前端绑定
+frontend/wailsjs/
+
+# 空的前端占位目录
+frontend/src/
+
+# IDE / 编辑器
+.idea/
+.vscode/
+*.swp
+
+# 系统文件
+Thumbs.db
+desktop.ini
+.DS_Store
+
+# 日志与临时导出
+*.log
+decrypt-log-*.txt
