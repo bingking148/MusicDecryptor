@@ -106,8 +106,8 @@ function bindControls() {
 
   $("#btnClearHistory").addEventListener("click", clearHistory);
   $("#historyList").addEventListener("click", onHistoryAction);
-  $("#inpInput").addEventListener("change", () => addRecentPath("input", $("#inpInput").value));
-  $("#inpOutput").addEventListener("change", () => addRecentPath("output", $("#inpOutput").value));
+  $("#inpInput").addEventListener("change", () => addRecentPath("input", cleanPathInput($("#inpInput"))));
+  $("#inpOutput").addEventListener("change", () => addRecentPath("output", cleanPathInput($("#inpOutput"))));
 }
 
 function bindDropzone() {
@@ -154,7 +154,7 @@ async function pickDefaultOutput() {
 }
 
 function openOutputDirectory() {
-  const path = $("#inpOutput").value.trim();
+  const path = cleanPathInput($("#inpOutput"));
   if (!path) return toast("warn", "尚未设置输出目录", "请先选择转换结果的保存位置。");
   app.OpenDirectory(path);
 }
@@ -166,7 +166,8 @@ async function loadSettings() {
     if (!settings) return;
     state.settings = settings;
     setTheme(settings.theme || "dark", false);
-    $("#setOutput").value = settings.outputDir || "";
+    const outputDir = normalizeUserPath(settings.outputDir || "");
+    $("#setOutput").value = outputDir;
     $("#setRecursive").checked = settings.recursive ?? true;
     $("#setSkipExisting").checked = settings.skipExisting ?? true;
     $("#setKeepStructure").checked = settings.keepStructure ?? true;
@@ -176,15 +177,16 @@ async function loadSettings() {
     $("#optSkipExisting").checked = settings.skipExisting ?? true;
     $("#optKeepStructure").checked = settings.keepStructure ?? true;
     $("#optAutoFixExt").checked = settings.autoFixExt ?? true;
-    $("#inpOutput").value = settings.outputDir || "";
+    $("#inpOutput").value = outputDir;
   } catch (error) {
     toast("bad", "设置读取失败", errorText(error));
   }
 }
 
 async function saveSettings(showToast) {
+  const outputDir = cleanPathInput($("#setOutput"));
   const payload = {
-    outputDir: $("#setOutput").value.trim(),
+    outputDir,
     recursive: $("#setRecursive").checked,
     skipExisting: $("#setSkipExisting").checked,
     keepStructure: $("#setKeepStructure").checked,
@@ -199,7 +201,7 @@ async function saveSettings(showToast) {
       $("#optSkipExisting").checked = payload.skipExisting;
       $("#optKeepStructure").checked = payload.keepStructure;
       $("#optAutoFixExt").checked = payload.autoFixExt;
-      if (!$("#inpOutput").value.trim()) $("#inpOutput").value = payload.outputDir;
+      if (!normalizeUserPath($("#inpOutput").value)) $("#inpOutput").value = payload.outputDir;
     }
     if (showToast) toast("ok", "设置已保存", "新任务将使用这些默认选项。");
   } catch (error) {
@@ -260,8 +262,8 @@ async function copyDiagnostics() {
 // ---------- Scan and decrypt ----------
 function collectOptions() {
   return {
-    inputDir: $("#inpInput").value.trim(),
-    outputDir: $("#inpOutput").value.trim(),
+    inputDir: cleanPathInput($("#inpInput")),
+    outputDir: cleanPathInput($("#inpOutput")),
     recursive: $("#optRecursive").checked,
     skipExisting: $("#optSkipExisting").checked,
     keepStructure: $("#optKeepStructure").checked,
@@ -438,7 +440,7 @@ function onSummary(summary) {
   }
   recordHistory(data);
   if (!data.cancelled && !data.failed && state.settings?.openOnComplete && (data.success || 0) > 0) {
-    app.OpenDirectory(state.currentOptions?.outputDir || $("#inpOutput").value.trim());
+    app.OpenDirectory(normalizeUserPath(state.currentOptions?.outputDir || $("#inpOutput").value));
   }
 }
 
@@ -658,10 +660,10 @@ function onHistoryAction(event) {
   if (!button) return;
   const entry = state.history.find((item) => item.id === button.dataset.historyId);
   if (!entry) return;
-  if (button.dataset.historyAction === "open") return app.OpenDirectory(entry.options.outputDir);
+  if (button.dataset.historyAction === "open") return app.OpenDirectory(normalizeUserPath(entry.options.outputDir));
   if (state.running) return toast("warn", "当前任务仍在运行", "任务结束后再载入历史配置。");
-  $("#inpInput").value = entry.options.inputDir || "";
-  $("#inpOutput").value = entry.options.outputDir || "";
+  $("#inpInput").value = normalizeUserPath(entry.options.inputDir || "");
+  $("#inpOutput").value = normalizeUserPath(entry.options.outputDir || "");
   $("#optRecursive").checked = entry.options.recursive ?? true;
   $("#optSkipExisting").checked = entry.options.skipExisting ?? true;
   $("#optKeepStructure").checked = entry.options.keepStructure ?? true;
@@ -690,8 +692,14 @@ function clearHistory() {
   toast("ok", "任务记录已清空", "音频文件和设置未受影响。");
 }
 
+function cleanPathInput(element) {
+  const value = normalizeUserPath(element.value);
+  if (element.value !== value) element.value = value;
+  return value;
+}
+
 function addRecentPath(kind, path) {
-  const clean = String(path || "").trim();
+  const clean = normalizeUserPath(path);
   if (!clean) return;
   const list = state.recent[kind] || [];
   state.recent[kind] = [clean, ...list.filter((item) => normalizePath(item) !== normalizePath(clean))].slice(0, 5);
@@ -746,7 +754,7 @@ function extension(path) {
 }
 
 function normalizePath(path) {
-  return String(path || "").replace(/[\\/]+$/, "").replace(/\//g, "\\").toLocaleLowerCase();
+  return pathCompareKey(path);
 }
 
 function errorText(error) {
