@@ -67,7 +67,7 @@
           <div class="environment-row"><span class="status-dot" id="dotQQ"></span><div><b>QQ 音乐</b><span id="envQQText">正在检测</span></div></div>
           <div class="environment-row"><span class="status-dot" id="dotEngine"></span><div><b>解密引擎</b><span id="envEngineText">正在准备</span></div></div>
         </div>
-        <div class="local-note"><svg class="icon"><use href="#i-shield"/></svg><span>文件仅在本机处理</span></div>
+        <div class="local-note"><svg class="icon"><use href="#i-shield"/></svg><span>默认只在本机处理</span></div>
       </div>
     </aside>
 
@@ -147,6 +147,19 @@
               <label class="setting-row"><div><strong>完成后打开输出目录</strong><span>任务成功结束后自动打开文件资源管理器</span></div><span class="switch"><input type="checkbox" id="setOpenOnComplete"/><i></i></span></label>
             </div>
           </section>
+          <section class="panel phone-bridge" id="phoneBridge">
+            <div class="settings-heading"><svg class="icon"><use href="#i-music"/></svg><div><h2>手机接力</h2><p>默认关闭。只有你点开启后，同一局域网里的手机才能把缺少密钥的文件送到这台电脑。</p></div></div>
+            <p class="bridge-note">手机读不到 QQ 音乐的私有目录，所以缓存文件（STag）在手机上解不开。这台电脑如果已经打开 QQ 音乐，可以代为解密。用完请关闭。不要在公共网络开启。传输没有额外加密，只应在你自己的 Wi-Fi 上使用。</p>
+            <div class="bridge-actions">
+              <button class="button primary" id="btnBridgeStart" type="button">开启接力</button>
+              <button class="button secondary" id="btnBridgeStop" type="button">关闭</button>
+            </div>
+            <div id="bridgePanel" hidden>
+              <div class="bridge-code" id="bridgeCode">----</div>
+              <div class="bridge-meta" id="bridgeMeta"></div>
+              <ul class="bridge-addrs" id="bridgeAddrs"></ul>
+            </div>
+          </section>
           <section class="panel appearance-panel"><div class="settings-heading"><svg class="icon"><use href="#i-sun"/></svg><div><h2>外观</h2><p>选择适合工作环境的界面主题</p></div></div><div class="theme-options"><button class="theme-card" data-theme-choice="dark"><span class="theme-preview dark-preview"><i></i><b></b><em></em></span><strong>深色</strong><span>石墨黑</span></button><button class="theme-card" data-theme-choice="light"><span class="theme-preview light-preview"><i></i><b></b><em></em></span><strong>浅色</strong><span>暖灰白</span></button></div><div class="settings-note"><svg class="icon"><use href="#i-info"/></svg><p>设置保存在当前 Windows 用户的应用配置目录中，不会修改 QQ 音乐的任何配置。</p></div></section>
         </div>
       </section>
@@ -154,7 +167,7 @@
       <section class="page" id="page-about">
         <div class="page-header"><div><div class="eyebrow">APPLICATION</div><h1>关于与诊断</h1><p>Music Decryptor 1.1.0 · Go + Wails</p></div><button class="button secondary" id="btnCopyDiagnostics"><svg class="icon"><use href="#i-copy"/></svg>复制诊断信息</button></div>
         <div class="about-layout">
-          <section class="panel about-main"><div class="about-brand"><div class="brand-mark large"><svg class="icon"><use href="#i-logo"/></svg></div><div><h2>Music Decryptor</h2><span>稳定、专注的本地音频格式恢复工具</span></div></div><p>应用调用本机正在运行的 QQ 音乐客户端组件，将合法获得的 MFLAC / MGG 文件恢复为 FLAC、OGG、MP3 等通用格式。文件不经过网络，应用本体不内置解密算法，也不修改 QQ 音乐客户端。</p><div class="about-features"><div><svg class="icon"><use href="#i-scan"/></svg><strong>任务预扫描</strong><span>开始之前确认文件与输出位置</span></div><div><svg class="icon"><use href="#i-shield"/></svg><strong>本地处理</strong><span>音频与配置均保留在本机</span></div><div><svg class="icon"><use href="#i-history"/></svg><strong>可追溯</strong><span>日志、状态与历史记录清晰可查</span></div></div></section>
+          <section class="panel about-main"><div class="about-brand"><div class="brand-mark large"><svg class="icon"><use href="#i-logo"/></svg></div><div><h2>Music Decryptor</h2><span>稳定、专注的本地音频格式恢复工具</span></div></div><p>应用调用本机正在运行的 QQ 音乐客户端组件，将合法获得的 MFLAC / MGG 文件恢复为 FLAC、OGG、MP3 等通用格式。默认不联网。只有在偏好设置里主动开启「手机接力」时，才会在局域网接收手机发来的文件。应用本体不内置解密算法，也不修改 QQ 音乐客户端。</p><div class="about-features"><div><svg class="icon"><use href="#i-scan"/></svg><strong>任务预扫描</strong><span>开始之前确认文件与输出位置</span></div><div><svg class="icon"><use href="#i-shield"/></svg><strong>本地处理</strong><span>音频与配置均保留在本机</span></div><div><svg class="icon"><use href="#i-history"/></svg><strong>可追溯</strong><span>日志、状态与历史记录清晰可查</span></div></div></section>
           <section class="panel diagnostics-panel"><div class="panel-heading"><div><h2>环境诊断</h2></div><button class="icon-btn small" id="btnAboutRefresh" title="重新检测"><svg class="icon"><use href="#i-refresh"/></svg></button></div><dl><div><dt>应用版本</dt><dd>1.1.0</dd></div><div><dt>QQ 音乐</dt><dd id="diagQQ">检测中</dd></div><div><dt>客户端架构</dt><dd id="diagQQArch">—</dd></div><div><dt>解密引擎</dt><dd id="diagEngine">检测中</dd></div><div><dt>引擎版本</dt><dd id="diagEngineVersion">—</dd></div><div><dt>客户端路径</dt><dd id="diagQQPath" class="path-value">—</dd></div></dl></section>
         </div>
         <section class="panel usage-panel"><h2>使用前提与合理用途</h2><div class="usage-grid"><div><span>01</span><p>Windows 10 / 11，已安装并启动 QQ 音乐桌面客户端。</p></div><div><span>02</span><p>仅处理你合法获得的音频，例如个人备份与设备间迁移。</p></div><div><span>03</span><p>请勿用于未授权传播或分发。引擎基于 Frida，感谢原项目贡献者。</p></div></div></section>

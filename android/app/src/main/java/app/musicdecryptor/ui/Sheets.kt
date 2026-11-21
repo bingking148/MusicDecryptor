@@ -90,7 +90,7 @@ fun KeySheet(
         Text("密钥", color = Text, fontSize = 22.sp, fontWeight = FontWeight.Medium)
         Spacer(Modifier.height(6.dp))
         Text(
-            "带 QTag 或尾部 ekey 的文件可以直接解。安卓 QQ 音乐缓存通常是 STag，密钥在 player_process_db 的 audio_file_ekey_table 里，普通应用读不到那个目录。",
+            "带 QTag 或尾部 ekey 的文件可以直接解。安卓缓存的 STag 把密钥放在 QQ 音乐的私有目录里，普通存储权限读不到，这不是再点一次权限就能解决的。可以导入你自己导出的 player_process_db，或用同一局域网里已开启接力的电脑。",
             color = TextDim,
             fontSize = 13.sp,
         )
@@ -134,6 +134,72 @@ fun KeySheet(
         }
     }
 }
+
+@Composable
+fun ComputerSheet(
+    host: String,
+    busy: Boolean,
+    onStart: (host: String, code: String) -> Unit,
+) {
+    var address by remember(host) { mutableStateOf(host) }
+    var code by remember { mutableStateOf("") }
+    Column(
+        Modifier
+            .padding(horizontal = 20.dp)
+            .padding(bottom = 28.dp)
+            .verticalScroll(rememberScrollState()),
+    ) {
+        Text("用电脑解开", color = Text, fontSize = 22.sp, fontWeight = FontWeight.Medium)
+        Spacer(Modifier.height(6.dp))
+        Text(
+            "手机不能读取 QQ 音乐私有目录里的密钥，所以没有内嵌 ekey 的缓存解不开。若电脑上的音乐解密已打开，QQ 音乐也在运行，并在设置里点了「开启接力」，可以把缺密钥的文件送到那台电脑。",
+            color = TextDim,
+            fontSize = 13.sp,
+        )
+        Spacer(Modifier.height(8.dp))
+        Text("不点连接时，应用不会联网。配对码不要发到公共网络。", color = TextFaint, fontSize = 12.sp)
+        Spacer(Modifier.height(14.dp))
+        Text("电脑地址", color = Text, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+        TextField(
+            value = address,
+            onValueChange = { address = it },
+            modifier = Modifier.fillMaxWidth(),
+            placeholder = { Text("192.168.1.8:47321", color = TextFaint) },
+            singleLine = true,
+            colors = bridgeFieldColors(),
+            shape = RoundedCornerShape(14.dp),
+        )
+        Spacer(Modifier.height(10.dp))
+        Text("配对码", color = Text, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+        TextField(
+            value = code,
+            onValueChange = { code = it },
+            modifier = Modifier.fillMaxWidth(),
+            placeholder = { Text("电脑上显示的 8 位码", color = TextFaint) },
+            singleLine = true,
+            colors = bridgeFieldColors(),
+            shape = RoundedCornerShape(14.dp),
+        )
+        Spacer(Modifier.height(12.dp))
+        PrimaryButton(
+            if (busy) "正在连接" else "连接并解密缺密钥的文件",
+            enabled = !busy && address.isNotBlank() && code.isNotBlank(),
+            onClick = { onStart(address.trim(), code.trim()) },
+            modifier = Modifier.fillMaxWidth(),
+        )
+    }
+}
+
+@Composable
+private fun bridgeFieldColors() = TextFieldDefaults.colors(
+    focusedContainerColor = Surface2,
+    unfocusedContainerColor = Surface2,
+    focusedIndicatorColor = Color.Transparent,
+    unfocusedIndicatorColor = Color.Transparent,
+    focusedTextColor = Text,
+    unfocusedTextColor = Text,
+    cursorColor = Lime,
+)
 
 @Composable
 fun DetailSheet(

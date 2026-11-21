@@ -57,6 +57,13 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    fun startComputer(context: Context, host: String, code: String) {
+        viewModelScope.launch { music.settings.update { it.copy(computerHost = host.trim()) } }
+        if (DecryptEngine.startComputer(host, code)) {
+            ContextCompat.startForegroundService(context, Intent(context, DecryptService::class.java))
+        }
+    }
+
     fun retryOne(context: Context, id: String): Boolean {
         val started = DecryptEngine.retryOne(id)
         if (started) {

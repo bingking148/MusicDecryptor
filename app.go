@@ -27,6 +27,7 @@ type App struct {
 	logLines    []string
 	settings    *engine.Settings
 	qqPathCache *qqPathCache
+	bridge      *engine.PhoneBridge
 }
 
 type qqPathCache struct {
@@ -55,6 +56,103 @@ func (a *App) shutdown(ctx context.Context) {
 	if a.cancel != nil {
 		a.cancel()
 	}
+	if a.bridge != nil {
+		a.bridge.Stop()
+	}
+}
+
+// ---------- 手机接力（默认关闭，只在用户开启后监听局域网） ----------
+
+func (a *App) phoneBridge() *engine.PhoneBridge {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.bridge == nil {
+		a.bridge = &engine.PhoneBridge{Decrypt: a.decryptOneForPhone}
+	}
+	return a.bridge
+}
+
+// StartPhoneBridge 开启局域网接力。未调用时不监听任何端口。
+func (a *App) StartPhoneBridge() (engine.BridgeInfo, error) {
+	return a.phoneBridge().Start()
+}
+
+// StopPhoneBridge 关闭接力并立即使已发出的配对失效。
+func (a *App) StopPhoneBridge() engine.BridgeInfo {
+	if a.bridge != nil {
+		a.bridge.Stop()
+	}
+	return a.PhoneBridgeStatus()
+}
+
+// PhoneBridgeStatus 返回当前接力状态。关闭时不会带出可用配对码。
+func (a *App) PhoneBridgeStatus() engine.BridgeInfo {
+	if a.bridge == nil {
+		return engine.BridgeInfo{Message: "未开启。开启后只在这台电脑的局域网地址上等待手机配对。"}
+	}
+	return a.bridge.Status()
+}
+
+func (a *App) decryptOneForPhone(ctx context.Context, src string) (string, error) {
+	a.mu.Lock()
+	if a.running {
+		a.mu.Unlock()
+		return "", fmt.Errorf("电脑正在处理本机任务，请稍后再试")
+	}
+	a.running = true
+	a.mu.Unlock()
+	defer func() {
+		a.mu.Lock()
+		a.running = false
+		a.mu.Unlock()
+	}()
+
+	inDir := filepath.Dir(src)
+	outDir := filepath.Join(filepath.Dir(inDir), "out")
+	if err := os.MkdirAll(outDir, 0o700); err != nil {
+		return "", err
+	}
+	var (
+		outPath string
+		failMsg string
+		mu      sync.Mutex
+	)
+	summary, err := engine.Run(ctx, a.assets, engine.Options{
+		InputDir:     inDir,
+		OutputDir:    outDir,
+		Recursive:    false,
+		SkipExisting: false,
+		AutoFixExt:   true,
+	}, func(kind string, data any) {
+		if kind != "file" {
+			return
+		}
+		item, ok := data.(*engine.FileItem)
+		if !ok || item == nil {
+			return
+		}
+		mu.Lock()
+		defer mu.Unlock()
+		if item.Status == engine.StatusSuccess {
+			outPath = item.OutPath
+		}
+		if item.Status == engine.StatusFailed && item.Message != "" {
+			failMsg = item.Message
+		}
+	}, func(string, string) {})
+	if err != nil {
+		return "", err
+	}
+	if outPath == "" {
+		if failMsg == "" && summary != nil && summary.Message != "" {
+			failMsg = summary.Message
+		}
+		if failMsg == "" {
+			failMsg = "电脑未能解密这个文件"
+		}
+		return "", fmt.Errorf("%s", failMsg)
+	}
+	return outPath, nil
 }
 
 func (a *App) emitEnvironment() {

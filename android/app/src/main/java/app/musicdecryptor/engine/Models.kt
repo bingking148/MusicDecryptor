@@ -69,6 +69,7 @@ data class UserSettings(
     val overwrite: Boolean = false,
     val autoExt: Boolean = true,
     val manualEkey: String = "",
+    val computerHost: String = "",
 ) {
     companion object {
         const val MODE_DOWNLOADS = "downloads"

@@ -2,6 +2,8 @@ package app.musicdecryptor.engine
 
 import android.content.Context
 import android.net.Uri
+import app.musicdecryptor.crypto.BridgeException
+import app.musicdecryptor.crypto.PhoneBridgeClient
 import app.musicdecryptor.crypto.AudioKind
 import app.musicdecryptor.crypto.AudioMeta
 import app.musicdecryptor.crypto.readAudioMeta
@@ -31,6 +33,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileInputStream
+import java.net.HttpURLConnection
 import java.nio.ByteBuffer
 import java.security.MessageDigest
 import kotlin.coroutines.coroutineContext
@@ -45,6 +48,7 @@ object DecryptEngine {
     private lateinit var keys: KeyLibrary
     private var job: Job? = null
     private var scanJob: Job? = null
+    @Volatile private var activeCall: HttpURLConnection? = null
 
     fun attach(context: Context, settings: SettingsStore, keys: KeyLibrary) {
         app = context.applicationContext
@@ -178,8 +182,22 @@ object DecryptEngine {
         return start()
     }
 
+    fun startComputer(baseUrl: String, code: String): Boolean {
+        if (isActive()) return false
+        val ids = session.value.tracks.filter { it.needsComputer() }.map { it.id }
+        if (ids.isEmpty()) {
+            session.update { it.copy(banner = "没有需要送到电脑的文件。带内嵌密钥的仍在手机上解密。") }
+            return false
+        }
+        job = scope.launch {
+            runComputer(baseUrl, code, ids.toSet())
+        }
+        return true
+    }
+
     fun cancel() {
         job?.cancel()
+        activeCall?.disconnect()
     }
 
     private suspend fun run() {
@@ -239,6 +257,154 @@ object DecryptEngine {
                 doneBytes = current.totalBytes,
                 banner = planner.warning,
             )
+        }
+    }
+
+    private suspend fun runComputer(baseUrl: String, code: String, ids: Set<String>) {
+        val cfg = settings.flow.first()
+        val startedAt = System.currentTimeMillis()
+        session.update { current ->
+            current.copy(
+                phase = Phase.RUNNING,
+                banner = "正在连接电脑。不开启接力时，应用不会联网。",
+                startedAt = startedAt,
+                finishedAt = 0,
+                runningId = null,
+                tracks = current.tracks.map { track ->
+                    if (track.id in ids) track.copy(status = TrackStatus.PENDING, message = "") else track
+                },
+            )
+        }
+        val token = try {
+            PhoneBridgeClient.pair(baseUrl, code)
+        } catch (e: BridgeException) {
+            session.update { it.copy(phase = Phase.IDLE, banner = e.message) }
+            return
+        } catch (e: Exception) {
+            session.update { it.copy(phase = Phase.IDLE, banner = e.message ?: "连不上电脑") }
+            return
+        }
+        val planner = OutputPlanner(app, cfg)
+        val queue = session.value.tracks.filter { it.id in ids }
+        val total = queue.sumOf { it.size.coerceAtLeast(0) }
+        session.update { it.copy(totalBytes = total, doneBytes = 0, banner = planner.warning ?: "已配对，正在把缺少密钥的文件送到电脑") }
+        var completed = 0L
+        for (track in queue) {
+            if (!coroutineContext.isActive) break
+            updateTrack(track.id) { it.copy(status = TrackStatus.RUNNING, message = "正在送到电脑") }
+            session.update { it.copy(runningId = track.id, runningFraction = 0f) }
+            val jobContext = coroutineContext
+            val outcome = withContext(Dispatchers.IO) {
+                computerOne(track, cfg, planner, baseUrl, token, { !jobContext.isActive }) { sent ->
+                    val fraction = if (track.size <= 0) 0f else sent.toFloat() / track.size
+                    session.update {
+                        it.copy(doneBytes = completed + sent, runningFraction = fraction.coerceIn(0f, 1f))
+                    }
+                }
+            }
+            completed += track.size.coerceAtLeast(0)
+            updateTrack(track.id) { outcome }
+            session.update { it.copy(doneBytes = completed) }
+        }
+        val cancelled = !coroutineContext.isActive
+        session.update { current ->
+            current.copy(
+                phase = Phase.DONE,
+                runningId = null,
+                runningFraction = 0f,
+                finishedAt = System.currentTimeMillis(),
+                doneBytes = current.totalBytes,
+                banner = planner.warning,
+                tracks = current.tracks.map { track ->
+                    if (cancelled && track.id in ids &&
+                        (track.status == TrackStatus.PENDING || track.status == TrackStatus.RUNNING)
+                    ) {
+                        track.copy(status = TrackStatus.FAILED, message = "已取消")
+                    } else {
+                        track
+                    }
+                },
+            )
+        }
+    }
+
+    private fun computerOne(
+        track: Track,
+        cfg: UserSettings,
+        planner: OutputPlanner,
+        baseUrl: String,
+        token: String,
+        isCancelled: () -> Boolean,
+        onProgress: (Long) -> Unit,
+    ): Track {
+        if (track.size > PhoneBridgeClient.MAX_BYTES) {
+            return track.copy(status = TrackStatus.FAILED, message = "文件超过 256MB，没有发送")
+        }
+        val ready = arrayOfNulls<Allocation.Ready>(1)
+        return try {
+            val input = app.contentResolver.openInputStream(Uri.parse(track.uri))
+                ?: error("无法读取文件")
+            val result = input.use { stream ->
+                PhoneBridgeClient.decrypt(
+                    baseUrl = baseUrl,
+                    token = token,
+                    fileName = track.name,
+                    body = stream,
+                    length = track.size,
+                    openOutput = { meta ->
+                        val ext = if (cfg.autoExt && meta.extension.matches(Regex("""\.[A-Za-z0-9]{1,5}"""))) {
+                            meta.extension
+                        } else {
+                            preferredExtension(track.name)
+                        }
+                        when (val allocation = planner.allocate(outputStem(track.name), ext, mimeFor(AudioKind.UNKNOWN, ext))) {
+                            is Allocation.Skip -> throw SkipOutput(allocation.name)
+                            is Allocation.Ready -> {
+                                ready[0] = allocation
+                                allocation.open()
+                            }
+                        }
+                    },
+                    onProgress = onProgress,
+                    isCancelled = isCancelled,
+                    onConnection = { activeCall = it },
+                )
+            }
+            val saved = ready[0] ?: return track.copy(status = TrackStatus.FAILED, message = "没有写出文件")
+            saved.complete()
+            val kind = when (result.extension.lowercase()) {
+                ".ogg" -> AudioKind.OGG
+                ".mp3" -> AudioKind.MP3
+                ".m4a" -> AudioKind.M4A
+                ".wav" -> AudioKind.WAV
+                else -> AudioKind.FLAC
+            }
+            val tags = readMeta(saved, kind)
+            track.copy(
+                status = TrackStatus.SUCCESS,
+                message = "由已配对的电脑解密",
+                outputName = result.outputName,
+                outputUri = saved.uri,
+                outputPath = saved.path,
+                title = tags.title,
+                artist = tags.artist,
+                album = tags.album,
+                cover = tags.cover?.let { shrinkCover(it) },
+            )
+        } catch (e: SkipOutput) {
+            track.copy(status = TrackStatus.SKIPPED, message = "输出已存在", outputName = e.name)
+        } catch (e: BridgeException) {
+            ready[0]?.discard()
+            track.copy(status = TrackStatus.FAILED, message = e.message ?: "电脑拒绝了这个文件")
+        } catch (_: CancelledException) {
+            ready[0]?.discard()
+            track.copy(status = TrackStatus.FAILED, message = "已取消")
+        } catch (e: Exception) {
+            ready[0]?.discard()
+            val message = if (isCancelled()) "已取消" else (e.message ?: "送到电脑时失败")
+            track.copy(status = TrackStatus.FAILED, message = message)
+        } finally {
+            activeCall = null
         }
     }
 
@@ -465,6 +631,15 @@ private fun fileSource(file: File): OwnedSource {
         runCatching { stream.close() }
     }
 }
+
+private fun Track.needsComputer(): Boolean {
+    if (status == TrackStatus.SUCCESS || status == TrackStatus.SKIPPED || status == TrackStatus.RUNNING) {
+        return false
+    }
+    return plan == KeyPlan.MISSING || plan == KeyPlan.MAC || status == TrackStatus.FAILED
+}
+
+private class SkipOutput(val name: String) : Exception()
 
 private fun trackId(uri: Uri): String {
     val digest = MessageDigest.getInstance("SHA-256").digest(uri.toString().toByteArray())

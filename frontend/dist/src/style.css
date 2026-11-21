@@ -268,6 +268,12 @@ button:disabled { cursor: not-allowed; opacity: .42; }
 
 /* Settings */
 .settings-layout { display: grid; grid-template-columns: minmax(460px, 1.35fr) minmax(280px, .8fr); gap: 14px; align-items: start; }
+.phone-bridge { grid-column: 1 / -1; padding: 20px; }
+.bridge-note { margin: 8px 0 14px; color: var(--text-dim); line-height: 1.55; }
+.bridge-actions { display: flex; gap: 8px; }
+.bridge-code { margin-top: 16px; font-family: Consolas, "Cascadia Mono", monospace; font-size: 28px; letter-spacing: .18em; color: var(--accent); }
+.bridge-meta, .bridge-addrs { color: var(--text-dim); margin-top: 6px; }
+.bridge-addrs { padding-left: 18px; }
 .settings-panel, .appearance-panel { padding: 20px; }
 .settings-heading { display: flex; align-items: flex-start; gap: 11px; margin-bottom: 21px; }.settings-heading > .icon { margin-top: 1px; color: var(--accent); }.settings-heading h2 { font-size: 13px; }.settings-heading p { margin-top: 5px; color: var(--text-faint); font-size: 10px; }
 .settings-options { margin-top: 18px; border-top: 1px solid var(--line-soft); }

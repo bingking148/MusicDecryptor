@@ -102,6 +102,8 @@ function bindControls() {
   $("#btnAboutRefresh").addEventListener("click", refreshEnvironment);
   $("#btnCopyDiagnostics").addEventListener("click", copyDiagnostics);
   $("#btnSaveSettings").addEventListener("click", () => saveSettings(true));
+  $("#btnBridgeStart").addEventListener("click", () => setPhoneBridge(true));
+  $("#btnBridgeStop").addEventListener("click", () => setPhoneBridge(false));
   $$("[data-theme-choice]").forEach((button) => button.addEventListener("click", () => setTheme(button.dataset.themeChoice, false)));
 
   $("#btnClearHistory").addEventListener("click", clearHistory);
@@ -177,8 +179,45 @@ async function loadSettings() {
     $("#optKeepStructure").checked = settings.keepStructure ?? true;
     $("#optAutoFixExt").checked = settings.autoFixExt ?? true;
     $("#inpOutput").value = settings.outputDir || "";
+    renderPhoneBridge(await app.PhoneBridgeStatus());
   } catch (error) {
     toast("bad", "设置读取失败", errorText(error));
+  }
+}
+
+async function setPhoneBridge(enabled) {
+  try {
+    const info = enabled ? await app.StartPhoneBridge() : await app.StopPhoneBridge();
+    renderPhoneBridge(info);
+    toast(enabled ? "ok" : "info", enabled ? "手机接力已开启" : "手机接力已关闭", info.message || "");
+  } catch (error) {
+    toast("bad", "手机接力失败", errorText(error));
+  }
+}
+
+function renderPhoneBridge(info) {
+  const panel = $("#bridgePanel");
+  if (!info || !info.enabled) {
+    panel.hidden = true;
+    $("#bridgeCode").textContent = "----";
+    $("#bridgeAddrs").replaceChildren();
+    return;
+  }
+  panel.hidden = false;
+  $("#bridgeCode").textContent = info.code || "----";
+  const when = info.expiresAt ? `配对码有效至 ${info.expiresAt.replace("T", " ").slice(0, 16)}` : "";
+  $("#bridgeMeta").textContent = when;
+  const list = $("#bridgeAddrs");
+  list.replaceChildren();
+  (info.addrs || []).forEach((addr) => {
+    const li = document.createElement("li");
+    li.textContent = addr;
+    list.appendChild(li);
+  });
+  if (!info.addrs || info.addrs.length === 0) {
+    const li = document.createElement("li");
+    li.textContent = "没有发现局域网地址。手机需要和这台电脑在同一个 Wi-Fi。";
+    list.appendChild(li);
   }
 }
 

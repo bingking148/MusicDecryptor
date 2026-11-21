@@ -58,8 +58,7 @@ frida-inject ──注入──> QQMusic.exe
 
 ## Android
 
-手机版在 `android/`，用 Kotlin 与 Jetpack Compose 在设备上解密，不依赖桌面端的 QQ 音乐进程。
-构建、使用和做不到的部分见 [android/README.md](android/README.md)。
+手机版在 `android/`。文件自带密钥时在手机上解密；安卓缓存如果只有 STag，密钥在 QQ 音乐私有目录里，普通权限读不到。可以导入自己导出的数据库，或在桌面版「偏好设置」里主动开启「手机接力」，让已经打开 QQ 音乐的电脑代解。详见 [android/README.md](android/README.md)。
 
 ## 开发 / 构建
 

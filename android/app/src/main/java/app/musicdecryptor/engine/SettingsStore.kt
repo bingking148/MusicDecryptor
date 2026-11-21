@@ -20,6 +20,7 @@ class SettingsStore(context: Context) {
             overwrite = prefs[KEY_OVERWRITE] ?: false,
             autoExt = prefs[KEY_AUTO_EXT] ?: true,
             manualEkey = prefs[KEY_EKEY] ?: "",
+            computerHost = prefs[KEY_HOST] ?: "",
         )
     }
 
@@ -31,6 +32,7 @@ class SettingsStore(context: Context) {
                 overwrite = prefs[KEY_OVERWRITE] ?: false,
                 autoExt = prefs[KEY_AUTO_EXT] ?: true,
                 manualEkey = prefs[KEY_EKEY] ?: "",
+                computerHost = prefs[KEY_HOST] ?: "",
             )
             val next = block(current)
             prefs[KEY_MODE] = next.outputMode
@@ -38,6 +40,7 @@ class SettingsStore(context: Context) {
             prefs[KEY_OVERWRITE] = next.overwrite
             prefs[KEY_AUTO_EXT] = next.autoExt
             prefs[KEY_EKEY] = next.manualEkey
+            prefs[KEY_HOST] = next.computerHost
         }
     }
 
@@ -47,5 +50,6 @@ class SettingsStore(context: Context) {
         val KEY_OVERWRITE = booleanPreferencesKey("overwrite")
         val KEY_AUTO_EXT = booleanPreferencesKey("auto_ext")
         val KEY_EKEY = stringPreferencesKey("manual_ekey")
+        val KEY_HOST = stringPreferencesKey("computer_host")
     }
 }

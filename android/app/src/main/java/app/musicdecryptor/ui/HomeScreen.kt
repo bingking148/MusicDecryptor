@@ -76,6 +76,7 @@ private enum class Filter { ALL, OK, BAD }
 private sealed interface Sheet {
     data object Output : Sheet
     data object Keys : Sheet
+    data object Computer : Sheet
     data class Detail(val id: String) : Sheet
 }
 
@@ -298,6 +299,7 @@ fun HomeRoute(vm: HomeViewModel = viewModel()) {
             }
             Row(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                 Text("密钥", color = Lime, fontSize = 13.sp, modifier = Modifier.clickable { sheet = Sheet.Keys })
+                Text("用电脑解开", color = Lime, fontSize = 13.sp, modifier = Modifier.clickable { sheet = Sheet.Computer })
                 Text("输出设置", color = TextDim, fontSize = 13.sp, modifier = Modifier.clickable { sheet = Sheet.Output })
                 if (session.success > 0 && !running) {
                     Text("清除已完成", color = TextFaint, fontSize = 13.sp, modifier = Modifier.clickable { vm.clearFinished() })
@@ -316,6 +318,10 @@ fun HomeRoute(vm: HomeViewModel = viewModel()) {
             when (val current = sheet) {
                 Sheet.Output -> OutputSheet(settings, vm::setMode, { pickTree.launch(null) }, vm::setOverwrite, vm::setAutoExt)
                 Sheet.Keys -> KeySheet(keys, settings.manualEkey, selfTest, { pickKey.launch(arrayOf("*/*")) }, vm::setManualEkey, vm::clearKeys, vm::runSelfTest)
+                Sheet.Computer -> ComputerSheet(settings.computerHost, running) { host, code ->
+                    sheet = null
+                    vm.startComputer(context, host, code)
+                }
                 is Sheet.Detail -> {
                     val track = session.tracks.firstOrNull { it.id == current.id }
                     if (track == null) {
