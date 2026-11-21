@@ -30,6 +30,9 @@ const state = {
   logRenderFrame: 0,
   historySaved: false,
   clearHistoryArmed: false,
+  update: null,
+  updateDismissed: false,
+  updating: false,
 };
 
 window.addEventListener("DOMContentLoaded", async () => {
@@ -44,6 +47,7 @@ window.addEventListener("DOMContentLoaded", async () => {
   await loadSettings();
   await refreshEnvironment();
   window.setInterval(refreshEnvironment, 6000);
+  checkForUpdate(false);
 });
 
 // ---------- Window and navigation ----------
@@ -101,6 +105,9 @@ function bindControls() {
   $("#btnRefreshEnv").addEventListener("click", refreshEnvironment);
   $("#btnAboutRefresh").addEventListener("click", refreshEnvironment);
   $("#btnCopyDiagnostics").addEventListener("click", copyDiagnostics);
+  $("#btnCheckUpdate").addEventListener("click", () => checkForUpdate(true));
+  $("#btnUpdateNow").addEventListener("click", installUpdate);
+  $("#btnUpdateLater").addEventListener("click", dismissUpdate);
   $("#btnSaveSettings").addEventListener("click", () => saveSettings(true));
   $$("[data-theme-choice]").forEach((button) => button.addEventListener("click", () => setTheme(button.dataset.themeChoice, false)));
 
@@ -235,9 +242,80 @@ async function refreshEnvironment() {
     $("#diagEngineVersion").textContent = env.engineVersion ? `${env.engineVersion} · ${env.engineArch || ""}` : "—";
     $("#diagQQPath").textContent = env.qqMusicPath || "—";
     $("#diagQQPath").title = env.qqMusicPath || "";
+    applyAppVersion(env.appVersion);
   } catch (error) {
     console.warn("Environment check failed", error);
   }
+}
+
+function applyAppVersion(version) {
+  const text = version || "未知";
+  const subtitle = $("#aboutSubtitle");
+  if (subtitle) subtitle.textContent = `Music Decryptor ${text} · Go + Wails`;
+  const diag = $("#diagAppVersion");
+  if (diag) diag.textContent = text;
+}
+
+function renderUpdateBanner(info) {
+  const available = !!info?.available;
+  $("#updateBanner").hidden = false;
+  $("#btnUpdateNow").hidden = !available;
+  $("#btnUpdateNow").disabled = false;
+  $("#btnUpdateNow").textContent = "立即更新";
+  $("#btnUpdateLater").disabled = false;
+  $("#btnUpdateLater").textContent = available ? "稍后" : "知道了";
+  $("#updateTitle").textContent = `发现新版本 ${info?.latestVersion || ""}`.trim();
+  $("#updateText").textContent = info?.message || (available ? "可以在应用内下载并安装，完成后会自动重启。" : "暂时无法安装这个版本。");
+}
+
+async function checkForUpdate(manual) {
+  if (state.updating) return;
+  try {
+    const info = await app.CheckForUpdate();
+    state.update = info || null;
+    if (info?.currentVersion) applyAppVersion(info.currentVersion);
+    if ((info?.available || info?.assetMissing) && (manual || !state.updateDismissed)) {
+      renderUpdateBanner(info);
+      return;
+    }
+    if (!state.updating) $("#updateBanner").hidden = true;
+    if (manual) toast("ok", "已是最新版本", `当前版本 ${info?.currentVersion || "未知"}。`);
+  } catch (error) {
+    if (manual) toast("bad", "检查更新失败", errorText(error));
+  }
+}
+
+async function installUpdate() {
+  if (state.updating || !state.update?.available) return;
+  if (state.running || state.scanning) {
+    toast("warn", "请先停止当前任务", "更新会重启应用，进行中的解密会中断。");
+    return;
+  }
+  state.updating = true;
+  $("#btnUpdateNow").disabled = true;
+  $("#btnUpdateLater").disabled = true;
+  $("#updateTitle").textContent = "正在下载更新";
+  $("#updateText").textContent = "正在连接 GitHub，请稍候。";
+  try {
+    await app.InstallUpdate();
+    $("#updateTitle").textContent = "正在安装更新";
+    $("#updateText").textContent = "程序即将重启，请稍候。";
+  } catch (error) {
+    state.updating = false;
+    $("#btnUpdateNow").hidden = false;
+    $("#btnUpdateNow").disabled = false;
+    $("#btnUpdateNow").textContent = "重试";
+    $("#btnUpdateLater").disabled = false;
+    $("#btnUpdateLater").textContent = "关闭";
+    $("#updateTitle").textContent = "更新没有完成";
+    $("#updateText").textContent = errorText(error);
+  }
+}
+
+function dismissUpdate() {
+  if (state.updating) return;
+  state.updateDismissed = true;
+  $("#updateBanner").hidden = true;
 }
 
 function setStatusDot(element, className) {
@@ -247,7 +325,7 @@ function setStatusDot(element, className) {
 async function copyDiagnostics() {
   const env = state.env || await app.CheckEnvironment();
   const text = [
-    "Music Decryptor 1.1.0",
+    `Music Decryptor ${env.appVersion || "未知"}`,
     `QQ Music: ${env.qqMusicRunning ? "Running" : "Not running"}`,
     `QQ Music architecture: ${env.qqMusicArch || "Unknown"}`,
     `QQ Music path: ${env.qqMusicPath || "Unknown"}`,
@@ -389,6 +467,13 @@ function bindEngineEvents() {
       case "log": onLog(event.data); break;
       case "error": onEngineError(event.data); break;
     }
+  });
+  rt.EventsOn("update:progress", (payload) => {
+    if (!state.updating || !payload) return;
+    const received = Number(payload.received || 0);
+    const total = Number(payload.total || 0);
+    $("#updateTitle").textContent = "正在下载更新";
+    $("#updateText").textContent = total ? `已下载 ${fmtSize(received)} / ${fmtSize(total)}` : `已下载 ${fmtSize(received)}`;
   });
 }
 

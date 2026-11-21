@@ -49,6 +49,10 @@
       <button class="window-btn window-close" id="btnClose" title="关闭" aria-label="关闭"><span class="close-icon"></span></button>
     </div>
   </header>
+  <div class="update-banner" id="updateBanner" hidden>
+    <div class="update-copy"><strong id="updateTitle">发现新版本</strong><p id="updateText"></p></div>
+    <div class="update-actions"><button class="button primary compact" id="btnUpdateNow" type="button">立即更新</button><button class="button secondary compact" id="btnUpdateLater" type="button">稍后</button></div>
+  </div>
 
   <div class="app-shell">
     <aside class="sidebar">
@@ -152,10 +156,10 @@
       </section>
 
       <section class="page" id="page-about">
-        <div class="page-header"><div><div class="eyebrow">APPLICATION</div><h1>关于与诊断</h1><p>Music Decryptor 1.1.0 · Go + Wails</p></div><button class="button secondary" id="btnCopyDiagnostics"><svg class="icon"><use href="#i-copy"/></svg>复制诊断信息</button></div>
+        <div class="page-header"><div><div class="eyebrow">APPLICATION</div><h1>关于与诊断</h1><p id="aboutSubtitle">Music Decryptor · Go + Wails</p></div><div class="header-actions"><button class="button secondary" id="btnCheckUpdate" type="button"><svg class="icon"><use href="#i-refresh"/></svg>检查更新</button><button class="button secondary" id="btnCopyDiagnostics"><svg class="icon"><use href="#i-copy"/></svg>复制诊断信息</button></div></div>
         <div class="about-layout">
           <section class="panel about-main"><div class="about-brand"><div class="brand-mark large"><svg class="icon"><use href="#i-logo"/></svg></div><div><h2>Music Decryptor</h2><span>稳定、专注的本地音频格式恢复工具</span></div></div><p>应用调用本机正在运行的 QQ 音乐客户端组件，将合法获得的 MFLAC / MGG 文件恢复为 FLAC、OGG、MP3 等通用格式。文件不经过网络，应用本体不内置解密算法，也不修改 QQ 音乐客户端。</p><div class="about-features"><div><svg class="icon"><use href="#i-scan"/></svg><strong>任务预扫描</strong><span>开始之前确认文件与输出位置</span></div><div><svg class="icon"><use href="#i-shield"/></svg><strong>本地处理</strong><span>音频与配置均保留在本机</span></div><div><svg class="icon"><use href="#i-history"/></svg><strong>可追溯</strong><span>日志、状态与历史记录清晰可查</span></div></div></section>
-          <section class="panel diagnostics-panel"><div class="panel-heading"><div><h2>环境诊断</h2></div><button class="icon-btn small" id="btnAboutRefresh" title="重新检测"><svg class="icon"><use href="#i-refresh"/></svg></button></div><dl><div><dt>应用版本</dt><dd>1.1.0</dd></div><div><dt>QQ 音乐</dt><dd id="diagQQ">检测中</dd></div><div><dt>客户端架构</dt><dd id="diagQQArch">—</dd></div><div><dt>解密引擎</dt><dd id="diagEngine">检测中</dd></div><div><dt>引擎版本</dt><dd id="diagEngineVersion">—</dd></div><div><dt>客户端路径</dt><dd id="diagQQPath" class="path-value">—</dd></div></dl></section>
+          <section class="panel diagnostics-panel"><div class="panel-heading"><div><h2>环境诊断</h2></div><button class="icon-btn small" id="btnAboutRefresh" title="重新检测"><svg class="icon"><use href="#i-refresh"/></svg></button></div><dl><div><dt>应用版本</dt><dd id="diagAppVersion">检测中</dd></div><div><dt>QQ 音乐</dt><dd id="diagQQ">检测中</dd></div><div><dt>客户端架构</dt><dd id="diagQQArch">—</dd></div><div><dt>解密引擎</dt><dd id="diagEngine">检测中</dd></div><div><dt>引擎版本</dt><dd id="diagEngineVersion">—</dd></div><div><dt>客户端路径</dt><dd id="diagQQPath" class="path-value">—</dd></div></dl></section>
         </div>
         <section class="panel usage-panel"><h2>使用前提与合理用途</h2><div class="usage-grid"><div><span>01</span><p>Windows 10 / 11，已安装并启动 QQ 音乐桌面客户端。</p></div><div><span>02</span><p>仅处理你合法获得的音频，例如个人备份与设备间迁移。</p></div><div><span>03</span><p>请勿用于未授权传播或分发。引擎基于 Frida，感谢原项目贡献者。</p></div></div></section>
       </section>

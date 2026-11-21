@@ -14,6 +14,7 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 
 	"musicdecryptor/engine"
+	"musicdecryptor/updater"
 )
 
 // App 桌面应用绑定层：把引擎能力暴露给前端。
@@ -140,7 +141,7 @@ type Environment struct {
 }
 
 func (a *App) CheckEnvironment() Environment {
-	env := Environment{AppVersion: "1.1.0"}
+	env := Environment{AppVersion: updater.CurrentVersion}
 
 	if pid, err := engine.FindQQMusicPID(); err == nil && pid != 0 {
 		env.QQMusicRunning = true
@@ -165,6 +166,60 @@ func (a *App) CheckEnvironment() Environment {
 	env.EngineVersion = version
 	env.Note = note
 	return env
+}
+
+// CheckForUpdate 在后台查询 GitHub Releases。没有更新时 Available 为 false，不打断当前任务。
+func (a *App) CheckForUpdate() (*updater.Result, error) {
+	ctx := a.ctx
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	ctx, cancel := context.WithTimeout(ctx, 20*time.Second)
+	defer cancel()
+	result, err := updater.DefaultClient().Check(ctx, updater.CurrentVersion)
+	if err != nil {
+		a.appendLog("warn", err.Error())
+		return nil, err
+	}
+	if result.Available {
+		a.appendLog("info", "发现新版本 "+result.LatestVersion)
+	} else if result.AssetMissing {
+		a.appendLog("warn", result.Message)
+	}
+	return &result, nil
+}
+
+// InstallUpdate 在用户确认后下载安装包，并在当前程序退出后完成替换和重启。
+func (a *App) InstallUpdate() error {
+	a.mu.Lock()
+	running := a.running
+	a.mu.Unlock()
+	if running {
+		return fmt.Errorf("当前任务仍在进行，请先停止后再更新")
+	}
+	ctx := a.ctx
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	ctx, cancel := context.WithTimeout(ctx, 20*time.Minute)
+	defer cancel()
+	err := updater.Install(ctx, updater.DefaultClient(), updater.CurrentVersion, func(received, total int64) {
+		if a.ctx != nil {
+			runtime.EventsEmit(a.ctx, "update:progress", map[string]any{
+				"received": received,
+				"total":    total,
+			})
+		}
+	})
+	if err != nil {
+		a.appendLog("error", err.Error())
+		return err
+	}
+	a.appendLog("info", "更新包已就绪，即将重启")
+	if a.ctx != nil {
+		runtime.Quit(a.ctx)
+	}
+	return nil
 }
 
 // ---------- 解密 ----------
