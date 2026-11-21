@@ -100,13 +100,15 @@ func foldFullwidthLetter(r rune) (rune, bool) {
 
 // windowsVolumeName 按 Go 标准库在 Windows 上的卷名规则识别本地路径。
 // 不调用 filepath.VolumeName：非 Windows 环境它恒为空，也无法单独覆盖规范化之前的全角冒号。
-// 逻辑对应 path/filepath.volumeNameLen（驱动器、UNC、\\?\ 与 \\.\ 设备路径）。
+// 长度规则对应 path/filepath.volumeNameLen（驱动器、UNC、\\?\ 与 \\.\ 设备路径）。
+// 卷名内部的正斜杠再收成反斜杠，与 Windows 上 VolumeName 的 FromSlash 一致。
+// 盘符卷名只有「E:」这两个字符，不受影响。
 func windowsVolumeName(path string) string {
 	n := windowsVolumeLen(path)
 	if n <= 0 {
 		return ""
 	}
-	return path[:n]
+	return strings.ReplaceAll(path[:n], "/", `\`)
 }
 
 func windowsVolumeLen(path string) int {
