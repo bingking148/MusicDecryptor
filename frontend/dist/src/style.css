@@ -205,6 +205,19 @@ button:disabled { cursor: not-allowed; opacity: .42; }
 .progress-fill { width: 0; height: 100%; border-radius: inherit; background: var(--accent); transition: width .25s ease; }
 .progress-panel.running .progress-fill { animation: progress-pulse 1.8s ease-in-out infinite; }
 .progress-footer { display: flex; justify-content: space-between; padding-top: 8px; color: var(--text-faint); font-family: "Cascadia Code", Consolas, monospace; font-size: 9px; font-variant-numeric: tabular-nums; }
+.progress-state.failed-stop h2 { color: var(--danger); }
+.progress-state.failed-stop p { max-width: 360px; color: var(--text-dim); font-size: 11px; line-height: 1.5; }
+.task-banner { margin-top: 12px; padding: 12px 14px; display: flex; align-items: center; gap: 12px; border: 1px solid color-mix(in srgb, var(--danger) 46%, var(--line)); border-radius: 8px; background: var(--danger-soft); }
+.task-banner > .icon { width: 18px; height: 18px; color: var(--danger); }
+.task-banner-copy { flex: 1; min-width: 0; }
+.task-banner strong { display: block; color: var(--danger); font-size: 12.5px; font-weight: 650; }
+.task-banner p { margin-top: 4px; color: var(--text); font-size: 12px; line-height: 1.55; }
+.task-dialog-backdrop { position: fixed; z-index: 80; left: 0; right: 0; bottom: 0; top: 40px; display: grid; place-items: center; padding: 24px; background: rgba(0, 0, 0, .55); }
+.task-dialog { width: min(460px, 100%); padding: 22px 22px 18px; border: 1px solid color-mix(in srgb, var(--danger) 48%, var(--line)); border-radius: var(--radius); background: var(--panel-raised); box-shadow: var(--shadow); }
+.task-dialog-icon { width: 36px; height: 36px; display: grid; place-items: center; margin-bottom: 12px; border-radius: 8px; color: var(--danger); background: var(--danger-soft); }
+.task-dialog h2 { font-size: 18px; font-weight: 650; letter-spacing: -.3px; }
+.task-dialog p { margin-top: 8px; color: var(--text); font-size: 13px; line-height: 1.65; }
+.task-dialog-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
 
 /* File table */
 .files-panel { overflow: hidden; }

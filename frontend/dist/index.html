@@ -111,6 +111,14 @@
             </div>
           </div>
           <div class="progress-track"><div class="progress-fill" id="overallFill"></div></div><div class="progress-footer"><span id="overallText">尚未开始</span><span id="overallPercent">0%</span></div>
+          <div class="task-banner" id="taskBanner" hidden role="alert">
+            <svg class="icon"><use href="#i-alert"/></svg>
+            <div class="task-banner-copy">
+              <strong id="taskBannerTitle">解密超时</strong>
+              <p id="taskBannerText"></p>
+            </div>
+            <button class="button danger compact" id="btnBannerRetry" type="button">重试未完成文件</button>
+          </div>
         </section>
 
         <section class="panel files-panel">
@@ -160,6 +168,17 @@
         <section class="panel usage-panel"><h2>使用前提与合理用途</h2><div class="usage-grid"><div><span>01</span><p>Windows 10 / 11，已安装并启动 QQ 音乐桌面客户端。</p></div><div><span>02</span><p>仅处理你合法获得的音频，例如个人备份与设备间迁移。</p></div><div><span>03</span><p>请勿用于未授权传播或分发。引擎基于 Frida，感谢原项目贡献者。</p></div></div></section>
       </section>
     </main>
+  </div>
+  <div class="task-dialog-backdrop" id="taskDialog" hidden>
+    <div class="task-dialog" role="dialog" aria-modal="true" aria-labelledby="taskDialogTitle" aria-describedby="taskDialogText">
+      <div class="task-dialog-icon"><svg class="icon"><use href="#i-alert"/></svg></div>
+      <h2 id="taskDialogTitle">解密超时</h2>
+      <p id="taskDialogText"></p>
+      <div class="task-dialog-actions">
+        <button class="button primary" id="btnDialogRetry" type="button">重试未完成文件</button>
+        <button class="button secondary" id="btnDialogDismiss" type="button">知道了</button>
+      </div>
+    </div>
   </div>
   <div class="toasts" id="toasts" aria-live="polite"></div>
   <script src="src/main.js"></script>

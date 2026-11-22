@@ -82,6 +82,15 @@ function bindControls() {
     $("#taskStateText").textContent = "正在停止，等待当前文件处理结束";
   });
   $("#btnRetryFailed").addEventListener("click", retryFailed);
+  $("#btnBannerRetry").addEventListener("click", retryFailed);
+  $("#btnDialogRetry").addEventListener("click", () => {
+    $("#taskDialog").hidden = true;
+    retryFailed();
+  });
+  $("#btnDialogDismiss").addEventListener("click", () => { $("#taskDialog").hidden = true; });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && !$("#taskDialog").hidden) $("#taskDialog").hidden = true;
+  });
 
   $("#fileSearch").addEventListener("input", scheduleFileRender);
   $("#statusFilter").addEventListener("change", scheduleFileRender);
@@ -353,6 +362,7 @@ function resetTaskUI() {
   $("#stElapsed").innerHTML = '0.0<span>s</span>';
   $("#taskStateTitle").textContent = "正在准备";
   $("#taskStateText").textContent = "扫描文件并初始化本地解密引擎";
+  hideInjectorFailure();
 }
 
 function setRunning(value) {
@@ -384,6 +394,7 @@ function bindEngineEvents() {
       case "file": onFile(event.data); break;
       case "progress": onProgress(event.data); break;
       case "summary": onSummary(event.data); break;
+      case "notice": onNotice(event.data); break;
       case "log": onLog(event.data); break;
       case "error": onEngineError(event.data); break;
     }
@@ -419,6 +430,11 @@ function onProgress(progress) {
   setProgress(total ? Math.round(done / total * 100) : 0, `${done} / ${total} 个文件已处理`);
 }
 
+function onNotice(data) {
+  showInjectorFailure(data);
+  setRunning(false);
+}
+
 function onSummary(summary) {
   setRunning(false);
   const data = summary || {};
@@ -426,6 +442,12 @@ function onSummary(summary) {
   const done = (data.success || 0) + (data.skipped || 0) + (data.failed || 0);
   renderStats(data);
   setElapsed((data.elapsedMs || 0) / 1000);
+  if (isInjectorFailure(data)) {
+    showInjectorFailure(data);
+    setProgress(total ? Math.round(done / total * 100) : 0, `${data.title || "任务中断"} · ${done} / ${total}`);
+    recordHistory(data);
+    return;
+  }
   setProgress(total ? Math.round(done / total * 100) : 0, data.cancelled ? `任务已停止 · ${done} / ${total}` : `任务结束 · ${done} / ${total}`);
   $("#taskStateTitle").textContent = data.cancelled ? "任务已停止" : (data.failed ? "任务完成，存在失败项" : "任务完成");
   $("#taskStateText").textContent = data.failed ? "可筛选失败文件，并仅重试失败项" : "所有可处理文件均已处理";
@@ -440,6 +462,40 @@ function onSummary(summary) {
   if (!data.cancelled && !data.failed && state.settings?.openOnComplete && (data.success || 0) > 0) {
     app.OpenDirectory(state.currentOptions?.outputDir || $("#inpOutput").value.trim());
   }
+}
+
+const INJECTOR_FAILURES = new Set(["timeout", "injector", "fatal"]);
+
+function isInjectorFailure(data) {
+  return INJECTOR_FAILURES.has(data?.reason || data?.stopReason);
+}
+
+function showInjectorFailure(data) {
+  if (!isInjectorFailure(data)) return;
+  const reason = data.reason || data.stopReason;
+  const title = data.title || { timeout: "解密超时", injector: "注入器已退出", fatal: "解密中断" }[reason] || "解密中断";
+  const message = data.message || "";
+  const unfinished = Number(data.unfinished || 0);
+  $("#taskStateTitle").textContent = title;
+  $("#taskStateText").textContent = unfinished > 0 ? `还有 ${unfinished} 个文件没有完成，可以重试这些文件` : "当前文件都已经有结果";
+  $(".progress-state").classList.add("failed-stop");
+  $("#taskBannerTitle").textContent = title;
+  $("#taskBannerText").textContent = message;
+  $("#taskDialogTitle").textContent = title;
+  $("#taskDialogText").textContent = message;
+  $("#btnBannerRetry").hidden = unfinished <= 0;
+  $("#btnDialogRetry").hidden = unfinished <= 0;
+  $("#taskBanner").hidden = false;
+  const dialog = $("#taskDialog");
+  const wasHidden = dialog.hidden;
+  dialog.hidden = false;
+  if (wasHidden) (unfinished > 0 ? $("#btnDialogRetry") : $("#btnDialogDismiss")).focus();
+}
+
+function hideInjectorFailure() {
+  $("#taskBanner").hidden = true;
+  $("#taskDialog").hidden = true;
+  $(".progress-state")?.classList.remove("failed-stop");
 }
 
 function onEngineError(data) {

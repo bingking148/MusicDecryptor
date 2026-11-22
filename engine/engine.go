@@ -1,7 +1,6 @@
 package engine
 
 import (
-	"bufio"
 	"bytes"
 	"context"
 	"crypto/md5"
@@ -14,8 +13,6 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
-	"sync"
-	"sync/atomic"
 	"time"
 )
 
@@ -43,13 +40,19 @@ type FileItem struct {
 }
 
 type Summary struct {
-	Total     int64  `json:"total"`
-	Success   int64  `json:"success"`
-	Skipped   int64  `json:"skipped"`
-	Failed    int64  `json:"failed"`
-	ElapsedMs int64  `json:"elapsedMs"`
-	Cancelled bool   `json:"cancelled"`
-	Message   string `json:"message,omitempty"`
+	Total     int64 `json:"total"`
+	Success   int64 `json:"success"`
+	Skipped   int64 `json:"skipped"`
+	Failed    int64 `json:"failed"`
+	ElapsedMs int64 `json:"elapsedMs"`
+	Cancelled bool  `json:"cancelled"`
+	// StopReason 区分正常结束、用户取消、超时、注入器意外退出和脚本致命错误。
+	// 取消与超时/注入器退出必须分开，界面据此显示不同的提示。
+	StopReason string `json:"stopReason,omitempty"`
+	Title      string `json:"title,omitempty"`
+	Message    string `json:"message,omitempty"`
+	// Unfinished 是本次结束时仍处于待处理或解密中、被收成失败的文件数。
+	Unfinished int64 `json:"unfinished,omitempty"`
 }
 
 type Event = map[string]any
@@ -149,11 +152,7 @@ func Run(ctx context.Context, assets embed.FS, opts Options, emit Emitter, logf 
 	}
 	logf("info", fmt.Sprintf("已定位 QQMusic.exe (pid=%d, %s)，注入器：%s", pid, arch, filepath.Base(injector)))
 
-	// 5. 运行注入器并解析输出
-	var mu sync.Mutex
-	runCtx, cancel := context.WithCancel(ctx)
-	defer cancel()
-
+	// 5. 运行注入器并解析输出。进程退出和会话超时都会结束任务，不能只等脚本的 finished。
 	cmd := exec.Command(injector, "-p", fmt.Sprint(pid), "-s", scriptPath)
 	hideWindow(cmd)
 	stdout, _ := cmd.StdoutPipe()
@@ -165,107 +164,13 @@ func Run(ctx context.Context, assets embed.FS, opts Options, emit Emitter, logf 
 	waitDone := make(chan error, 1)
 	go func() { waitDone <- cmd.Wait() }()
 
-	finished := atomic.Bool{}
-	go func() {
-		sc := bufio.NewScanner(stdout)
-		sc.Buffer(make([]byte, 0, 256*1024), 8*1024*1024)
-		for sc.Scan() {
-			line := strings.TrimSpace(sc.Text())
-			if line == "" {
-				continue
-			}
-			msg := parseScriptMessage(line)
-			if msg == nil {
-				logf("debug", line)
-				continue
-			}
-			id, _ := msg["id"].(string)
-			switch msg["t"] {
-			case "start":
-				mu.Lock()
-				setItemStatus(items, id, StatusRunning, "")
-				snap := snapshotItem(items, id)
-				mu.Unlock()
-				if snap != nil {
-					emit("file", snap)
-				}
-			case "done":
-				tmp := tmpByID[id]
-				mu.Lock()
-				errMsg := finalizeItem(items, id, tmp, opts)
-				if errMsg != "" {
-					setItemStatus(items, id, StatusFailed, errMsg)
-					summary.Failed++
-				} else {
-					setItemStatus(items, id, StatusSuccess, "")
-					summary.Success++
-				}
-				snap := snapshotItem(items, id)
-				mu.Unlock()
-				os.Remove(tmp)
-				if snap != nil {
-					emit("file", snap)
-				}
-				emitProgress(emit, summary, start, false)
-			case "fail":
-				os.Remove(tmpByID[id])
-				reason, _ := msg["err"].(string)
-				mu.Lock()
-				setItemStatus(items, id, StatusFailed, reason)
-				summary.Failed++
-				snap := snapshotItem(items, id)
-				mu.Unlock()
-				if snap != nil {
-					emit("file", snap)
-				}
-				emitProgress(emit, summary, start, false)
-				logf("warn", "失败："+id+"："+reason)
-			case "fatal":
-				reason, _ := msg["err"].(string)
-				logf("error", "注入脚本致命错误："+reason)
-				cancel()
-			case "finished":
-				finished.Store(true)
-				cancel()
-			}
+	driveInjectorSession(ctx, stdout, stderr, waitDone, func() {
+		if cmd.Process != nil {
+			_ = cmd.Process.Kill()
 		}
-	}()
-	go func() {
-		data, _ := io.ReadAll(stderr)
-		if len(bytes.TrimSpace(data)) > 0 {
-			logf("warn", "注入器 stderr: "+strings.TrimSpace(string(data)))
-		}
-	}()
-
-	<-runCtx.Done()
-	_ = cmd.Process.Kill()
-	<-waitDone
-
-	// 收尾：把没有终态的文件标记为失败
-	mu.Lock()
-	var leftovers []FileItem
-	for _, it := range items {
-		if it.Status == StatusPending || it.Status == StatusRunning {
-			it.Status = StatusFailed
-			if ctx.Err() == context.Canceled {
-				it.Message = "已取消"
-			} else {
-				it.Message = "注入进程意外结束"
-			}
-			summary.Failed++
-			leftovers = append(leftovers, *it)
-		}
-	}
-	mu.Unlock()
-	for i := range leftovers {
-		emit("file", &leftovers[i])
-	}
+	}, items, summary, tmpByID, opts, emit, logf, start, injectIdleTimeout)
 
 	cleanupStaging(staging, logf)
-
-	summary.ElapsedMs = time.Since(start).Milliseconds()
-	summary.Cancelled = ctx.Err() == context.Canceled
-	emitProgress(emit, summary, start, true)
 	return summary, nil
 }
 

@@ -181,8 +181,9 @@ func (a *App) appendLog(level, line string) {
 // StartDecrypt 启动一次批量解密任务，结果通过 Wails 事件推送给前端：
 //   - engine:files    {items: []engine.FileItem}      任务清单
 //   - engine:file     {item: engine.FileItem}         单个文件状态更新
-//   - engine:progress {total,success,skipped,failed,done,elapsedMs}
-//   - engine:summary  {total,success,skipped,failed,elapsedMs,cancelled}
+//   - engine:progress {total,success,skipped,failed,done,elapsedMs,final}
+//   - engine:notice   {reason,title,message,unfinished}  超时 / 注入器退出 / 脚本中断
+//   - engine:summary  {total,success,skipped,failed,elapsedMs,cancelled,stopReason,title,message,unfinished}
 //   - engine:log      {level,message}
 func (a *App) StartDecrypt(opts engine.Options) error {
 	a.mu.Lock()
@@ -226,8 +227,16 @@ func (a *App) StartDecrypt(opts engine.Options) error {
 			}
 			return
 		}
-		logf("info", fmt.Sprintf("任务完成：成功 %d，跳过 %d，失败 %d，耗时 %.1fs",
-			summary.Success, summary.Skipped, summary.Failed, float64(summary.ElapsedMs)/1000))
+		switch summary.StopReason {
+		case engine.StopReasonCancelled:
+			logf("warn", "任务已取消")
+		case engine.StopReasonTimeout, engine.StopReasonInjector, engine.StopReasonFatal:
+			logf("info", fmt.Sprintf("任务结束：成功 %d，跳过 %d，失败 %d，未完成 %d，耗时 %.1fs",
+				summary.Success, summary.Skipped, summary.Failed, summary.Unfinished, float64(summary.ElapsedMs)/1000))
+		default:
+			logf("info", fmt.Sprintf("任务完成：成功 %d，跳过 %d，失败 %d，耗时 %.1fs",
+				summary.Success, summary.Skipped, summary.Failed, float64(summary.ElapsedMs)/1000))
+		}
 		emit("summary", summary)
 	}()
 

@@ -8,16 +8,7 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
-	"syscall"
 )
-
-// hideWindow 让后台命令不在屏幕上弹黑框。
-func hideWindow(cmd *exec.Cmd) {
-	cmd.SysProcAttr = &syscall.SysProcAttr{
-		HideWindow:    true,
-		CreationFlags: 0x08000000, // CREATE_NO_WINDOW
-	}
-}
 
 // FindQQMusicPID 通过 tasklist 查找 QQMusic.exe 进程，返回第一个 PID。
 func FindQQMusicPID() (uint32, error) {
