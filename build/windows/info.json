@@ -1,10 +1,10 @@
 {
   "fixed": {
-    "file_version": "1.1.0.0"
+    "file_version": "1.1.1.0"
   },
   "info": {
     "0409": {
-      "ProductVersion": "1.1.0",
+      "ProductVersion": "1.1.1",
       "CompanyName": "",
       "FileDescription": "音乐解密器 Music Decryptor",
       "LegalCopyright": "仅供个人合法获得的音频文件处理使用",
