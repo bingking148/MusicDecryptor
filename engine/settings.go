@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
-	"strings"
 )
 
 // Options 一次解密任务的配置。
@@ -82,10 +81,11 @@ func NormalizeSettings(s *Settings) *Settings {
 	if s.Theme != "dark" && s.Theme != "light" {
 		s.Theme = d.Theme
 	}
+	s.OutputDir = NormalizeUserPath(s.OutputDir)
 	return s
 }
 
 func NormalizeOptions(o *Options) {
-	o.InputDir = strings.TrimSpace(o.InputDir)
-	o.OutputDir = strings.TrimSpace(o.OutputDir)
+	o.InputDir = NormalizeUserPath(o.InputDir)
+	o.OutputDir = NormalizeUserPath(o.OutputDir)
 }

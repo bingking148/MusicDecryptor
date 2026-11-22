@@ -290,6 +290,14 @@ button:disabled { cursor: not-allowed; opacity: .42; }
 .diagnostics-panel dl { margin-top: 3px; }.diagnostics-panel dl > div { min-height: 37px; display: grid; grid-template-columns: 95px 1fr; align-items: center; gap: 12px; border-bottom: 1px solid var(--line-soft); }.diagnostics-panel dl > div:last-child { border: 0; }.diagnostics-panel dt { color: var(--text-faint); font-size: 9.5px; }.diagnostics-panel dd { color: var(--text-dim); font-size: 10px; text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }.diagnostics-panel dd.path-value { user-select: text; font-family: Consolas, monospace; font-size: 8.5px; }
 .usage-panel h2 { margin-bottom: 17px; }.usage-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }.usage-grid > div { display: flex; align-items: flex-start; gap: 10px; }.usage-grid span { color: var(--accent); font-family: Consolas, monospace; font-size: 9.5px; }.usage-grid p { color: var(--text-dim); font-size: 10px; line-height: 1.7; }
 
+/* Update */
+.header-actions { display: flex; align-items: center; gap: 8px; flex: none; }
+.update-banner { flex: none; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 10px 16px; background: var(--warning-soft); border-bottom: 1px solid color-mix(in srgb, var(--warning) 35%, transparent); }
+.update-copy { min-width: 0; }
+.update-banner strong { display: block; font-size: 12px; font-weight: 640; }
+.update-banner p { margin-top: 3px; color: var(--text-dim); font-size: 11px; line-height: 1.45; }
+.update-actions { display: flex; gap: 8px; flex: none; }
+
 /* Notifications */
 .toasts { position: fixed; right: 18px; bottom: 18px; z-index: 100; width: 320px; display: flex; flex-direction: column; gap: 8px; pointer-events: none; }
 .toast { padding: 12px 14px; display: grid; grid-template-columns: 18px 1fr; gap: 10px; border: 1px solid var(--line-strong); border-radius: 8px; background: var(--panel-raised); box-shadow: var(--shadow); animation: toast-in .18s ease-out; pointer-events: auto; }.toast > .icon { width: 16px; height: 16px; margin-top: 1px; }.toast strong { display: block; font-size: 11px; font-weight: 600; }.toast p { margin-top: 4px; color: var(--text-dim); font-size: 9.5px; line-height: 1.5; }.toast.ok > .icon { color: var(--success); }.toast.bad > .icon { color: var(--danger); }.toast.warn > .icon { color: var(--warning); }.toast.info > .icon { color: var(--accent); }.toast.out { animation: toast-out .2s ease-in forwards; }
