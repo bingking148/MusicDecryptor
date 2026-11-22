@@ -10,8 +10,6 @@ const STATUS_LABELS = { pending: "待处理", running: "解密中", success: "�
 const PAGE_LABELS = { home: "工作台", history: "任务记录", settings: "偏好设置", about: "关于与诊断" };
 const HISTORY_KEY = "musicDecryptor.taskHistory.v1";
 const RECENT_KEY = "musicDecryptor.recentPaths.v1";
-const MAX_RENDERED_FILES = 400;
-
 const state = {
   items: new Map(),
   order: [],
@@ -27,6 +25,10 @@ const state = {
   history: [],
   recent: { input: [], output: [] },
   fileRenderFrame: 0,
+  fileDataVersion: 0,
+  fileCacheKey: "",
+  fileCache: null,
+  fileViewKey: "",
   logRenderFrame: 0,
   historySaved: false,
   clearHistoryArmed: false,
@@ -65,6 +67,7 @@ function navigate(page) {
   $(".main").scrollTop = 0;
   if (page === "history") renderHistory();
   if (page === "about") refreshEnvironment();
+  if (page === "home") renderFiles();
 }
 
 // ---------- Controls ----------
@@ -96,6 +99,7 @@ function bindControls() {
   $("#statusFilter").addEventListener("change", scheduleFileRender);
   $("#sortFiles").addEventListener("change", scheduleFileRender);
   $("#fileList").addEventListener("click", onFileAction);
+  $("#fileList").addEventListener("scroll", scheduleFileRender, { passive: true });
 
   $("#logToggle").addEventListener("click", (event) => {
     if (event.target.closest(".log-actions")) return;
@@ -410,6 +414,7 @@ function setItems(items) {
   state.items.clear();
   state.order = [];
   items.forEach((item) => { state.items.set(item.id, item); state.order.push(item.id); });
+  state.fileDataVersion++;
   renderFiles();
 }
 
@@ -417,6 +422,7 @@ function onFile(item) {
   if (!item || !item.id) return;
   if (!state.items.has(item.id)) state.order.push(item.id);
   state.items.set(item.id, item);
+  state.fileDataVersion++;
   if (!state.running) $("#btnRetryFailed").disabled = !allItems().some((entry) => entry.status === "failed");
   scheduleFileRender();
 }
@@ -525,16 +531,17 @@ function scheduleFileRender() {
   state.fileRenderFrame = requestAnimationFrame(() => { state.fileRenderFrame = 0; renderFiles(); });
 }
 
-function renderFiles() {
-  const list = $("#fileList");
+function visibleFiles() {
   const all = allItems();
   const query = $("#fileSearch").value.trim().toLocaleLowerCase();
   const filter = $("#statusFilter").value;
+  const sort = $("#sortFiles").value;
+  const cacheKey = `${state.fileDataVersion}\0${query}\0${filter}\0${sort}`;
+  if (state.fileCache && state.fileCacheKey === cacheKey) return { all, items: state.fileCache, query, filter, sort };
   let items = all.filter((item) => {
     const matchesQuery = !query || `${item.name} ${item.relPath}`.toLocaleLowerCase().includes(query);
     return matchesQuery && (filter === "all" || item.status === filter);
   });
-  const sort = $("#sortFiles").value;
   const statusOrder = { running: 0, failed: 1, pending: 2, skipped: 3, success: 4 };
   items = items.slice().sort((a, b) => {
     if (sort === "name") return a.name.localeCompare(b.name, "zh-CN");
@@ -542,19 +549,53 @@ function renderFiles() {
     if (sort === "status") return (statusOrder[a.status] ?? 9) - (statusOrder[b.status] ?? 9) || a.relPath.localeCompare(b.relPath);
     return a.relPath.localeCompare(b.relPath, "zh-CN");
   });
+  state.fileCache = items;
+  state.fileCacheKey = cacheKey;
+  return { all, items, query, filter, sort };
+}
+
+function renderFiles() {
+  const list = $("#fileList");
+  if (!list) return;
+  const { all, items, query, filter, sort } = visibleFiles();
 
   $("#listCount").textContent = String(all.length);
-  $("#fileSummary").innerHTML = all.length
-    ? `${items.length} / ${all.length} 个文件 · ${fmtSize(totalBytes())}${items.length > MAX_RENDERED_FILES ? ' <span class="list-limit-note">仅显示前 400 项，请筛选缩小范围</span>' : ""}`
+  $("#fileSummary").textContent = all.length
+    ? `${items.length} / ${all.length} 个文件 · ${fmtSize(totalBytes())}`
     : "等待扫描";
   if (!state.running) $("#btnRetryFailed").disabled = !all.some((item) => item.status === "failed");
 
   if (!items.length) {
+    state.fileViewKey = "";
     const isFiltered = all.length > 0;
     list.innerHTML = `<div class="empty-state"><div class="empty-icon"><svg class="icon"><use href="#i-${isFiltered ? "search" : "music"}"/></svg></div><strong>${isFiltered ? "没有匹配的文件" : "还没有文件"}</strong><p>${isFiltered ? "尝试更换关键词或状态筛选" : "选择来源目录，点击“扫描文件”预览任务清单"}</p></div>`;
     return;
   }
-  list.innerHTML = items.slice(0, MAX_RENDERED_FILES).map(rowHTML).join("");
+
+  const viewKey = `${query}\0${filter}\0${sort}\0${items.length}\0${items[0].id}\0${items[items.length - 1].id}`;
+  if (state.fileViewKey !== viewKey) {
+    state.fileViewKey = viewKey;
+    if (list.scrollTop > 0) list.scrollTop = 0;
+  }
+
+  let spacer = list.querySelector(".file-list-spacer");
+  let rows = list.querySelector(".file-list-rows");
+  if (!spacer || !rows) {
+    list.innerHTML = `<div class="file-list-spacer"><div class="file-list-rows"></div></div>`;
+    spacer = list.querySelector(".file-list-spacer");
+    rows = list.querySelector(".file-list-rows");
+  }
+
+  let viewport = list.clientHeight || 290;
+  let range = FileListWindow.fileWindow(list.scrollTop, viewport, items.length, FileListWindow.FILE_ROW_HEIGHT, FileListWindow.FILE_ROW_OVERSCAN);
+  spacer.style.height = `${range.totalHeight}px`;
+  const grown = list.clientHeight || viewport;
+  if (grown !== viewport) {
+    viewport = grown;
+    range = FileListWindow.fileWindow(list.scrollTop, viewport, items.length, FileListWindow.FILE_ROW_HEIGHT, FileListWindow.FILE_ROW_OVERSCAN);
+  }
+  rows.style.transform = `translateY(${range.offset}px)`;
+  rows.innerHTML = items.slice(range.start, range.end).map(rowHTML).join("");
 }
 
 function rowHTML(item) {

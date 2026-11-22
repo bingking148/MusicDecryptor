@@ -232,8 +232,10 @@ button:disabled { cursor: not-allowed; opacity: .42; }
 .file-table-head { height: 32px; padding: 0 16px; border-bottom: 1px solid var(--line-soft); background: var(--panel-inset); color: var(--text-faint); font-size: 9px; letter-spacing: .35px; }
 .file-table-head span:last-child { text-align: center; }
 .file-list { min-height: 146px; max-height: 290px; overflow-y: auto; }
-.file-row { min-height: 43px; padding: 6px 16px; border-bottom: 1px solid var(--line-soft); font-size: 10.5px; }
-.file-row:last-child { border-bottom: 0; }.file-row:hover { background: var(--panel-inset); }
+.file-list-spacer { position: relative; width: 100%; }
+.file-list-rows { position: absolute; top: 0; left: 0; right: 0; }
+.file-row { height: 43px; min-height: 43px; max-height: 43px; padding: 6px 16px; border-bottom: 1px solid var(--line-soft); font-size: 10.5px; overflow: hidden; }
+.file-row:hover { background: var(--panel-inset); }
 .file-name { min-width: 0; display: flex; align-items: center; gap: 9px; }
 .file-type-icon { width: 25px; height: 27px; display: grid; place-items: center; flex: none; border: 1px solid var(--line); border-radius: 4px; color: var(--text-faint); background: var(--panel-inset); }
 .file-type-icon .icon { width: 13px; height: 13px; }
@@ -251,7 +253,6 @@ button:disabled { cursor: not-allowed; opacity: .42; }
 .empty-icon { width: 36px; height: 36px; display: grid; place-items: center; margin-bottom: 10px; border: 1px solid var(--line); border-radius: 8px; color: var(--text-faint); }
 .empty-icon .icon { width: 17px; height: 17px; }.empty-state strong { color: var(--text-dim); font-size: 11px; font-weight: 550; }.empty-state p { margin-top: 6px; font-size: 9.5px; }
 .files-footer { min-height: 36px; padding: 4px 16px; display: flex; align-items: center; justify-content: space-between; border-top: 1px solid var(--line-soft); color: var(--text-faint); font-size: 9.5px; }
-.list-limit-note { color: var(--warning); }
 
 /* Logs */
 .log-panel { overflow: hidden; margin-bottom: 0; }
