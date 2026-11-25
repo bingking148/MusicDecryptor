@@ -115,6 +115,14 @@
             </div>
           </div>
           <div class="progress-track"><div class="progress-fill" id="overallFill"></div></div><div class="progress-footer"><span id="overallText">尚未开始</span><span id="overallPercent">0%</span></div>
+          <div class="task-banner" id="taskBanner" hidden role="alert">
+            <svg class="icon"><use href="#i-alert"/></svg>
+            <div class="task-banner-copy">
+              <strong id="taskBannerTitle">解密超时</strong>
+              <p id="taskBannerText"></p>
+            </div>
+            <button class="button danger compact" id="btnBannerRetry" type="button">重试未完成文件</button>
+          </div>
         </section>
 
         <section class="panel files-panel">
@@ -165,7 +173,19 @@
       </section>
     </main>
   </div>
+  <div class="task-dialog-backdrop" id="taskDialog" hidden>
+    <div class="task-dialog" role="dialog" aria-modal="true" aria-labelledby="taskDialogTitle" aria-describedby="taskDialogText">
+      <div class="task-dialog-icon"><svg class="icon"><use href="#i-alert"/></svg></div>
+      <h2 id="taskDialogTitle">解密超时</h2>
+      <p id="taskDialogText"></p>
+      <div class="task-dialog-actions">
+        <button class="button primary" id="btnDialogRetry" type="button">重试未完成文件</button>
+        <button class="button secondary" id="btnDialogDismiss" type="button">知道了</button>
+      </div>
+    </div>
+  </div>
   <div class="toasts" id="toasts" aria-live="polite"></div>
+  <script src="src/file-window.js"></script>
   <script src="src/pathnorm.js"></script>
   <script src="src/main.js"></script>
 </body>

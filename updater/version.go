@@ -8,8 +8,8 @@ import (
 
 // CurrentVersion 是应用版本的唯一来源，界面显示和 GitHub Release 比较都用它。
 // 须与 wails.json 的 productVersion、build/windows/info.json 的 ProductVersion 一致。
-// Windows 文件版本 file_version 用四段数字，1.1.1 对应 1.1.1.0。
-const CurrentVersion = "1.1.1"
+// Windows 文件版本 file_version 用四段数字，1.1.2 对应 1.1.2.0。
+const CurrentVersion = "1.1.2"
 
 // Version 是去掉 v 前缀后的数字版本。Pre 非空表示预发布标记。
 type Version struct {
