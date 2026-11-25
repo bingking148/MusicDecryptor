@@ -71,6 +71,8 @@ type job struct {
 func Run(ctx context.Context, assets embed.FS, opts Options, emit Emitter, logf func(level, msg string)) (*Summary, error) {
 	start := time.Now()
 	summary := &Summary{}
+	// 先规范化，扫描出的目标路径和后面的暂存目录都使用整理后的结果。
+	NormalizeOptions(&opts)
 
 	if st, err := os.Stat(opts.InputDir); err != nil || !st.IsDir() {
 		return summary, fmt.Errorf("输入目录不存在或不可读：%s", opts.InputDir)
@@ -272,10 +274,11 @@ func defaultOutExt(srcExt string) string {
 // ---------- 暂存与 junction ----------
 
 func prepareStaging(outputDir string) (string, error) {
-	vol := filepath.VolumeName(outputDir)
-	if vol == "" {
-		return "", fmt.Errorf("输出目录不是本地路径：%s", outputDir)
+	outputDir, err := normalizeLocalDir(outputDir)
+	if err != nil {
+		return "", err
 	}
+	vol := windowsVolumeName(outputDir)
 	staging := filepath.Join(vol+string(os.PathSeparator), "qqmusic_decrypt_tmp")
 	if err := os.MkdirAll(staging, 0o755); err != nil {
 		return "", fmt.Errorf("创建暂存目录失败：%v", err)

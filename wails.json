@@ -11,7 +11,7 @@
   },
   "info": {
     "productName": "Music Decryptor 音频解密工具",
-    "productVersion": "1.1.0",
+    "productVersion": "1.1.2",
     "copyright": "仅供个人合法获得的音频文件处理使用",
     "comments": "由 Go + Wails 构建的 QQ 音乐格式批量解密桌面应用"
   }

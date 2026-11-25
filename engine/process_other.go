@@ -4,5 +4,5 @@ package engine
 
 import "os/exec"
 
-// hideWindow 在非 Windows 平台无需隐藏控制台窗口。
+// hideWindow 在非 Windows 上没有控制台黑框需要隐藏。
 func hideWindow(cmd *exec.Cmd) {}
